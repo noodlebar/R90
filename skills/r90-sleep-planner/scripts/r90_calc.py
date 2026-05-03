@@ -203,13 +203,19 @@ def calculate_wake_options(
     sleep_date: date | None,
     cycle_options: tuple[int, ...],
     timezone: str | None = None,
+    use_now: bool = False,
 ) -> dict[str, Any]:
     tzinfo = load_tz(timezone)
-    if sleep_time:
+    if use_now:
+        lights_out = local_now(timezone)
+        source = "current_time"
+    elif sleep_time:
         base_date = sleep_date or local_now(timezone).date()
         lights_out = datetime.combine(base_date, parse_hhmm(sleep_time), tzinfo=tzinfo)
+        source = "provided_time"
     else:
         lights_out = local_now(timezone)
+        source = "current_time"
 
     options: list[dict[str, Any]] = []
     for cycle_count in sorted(set(cycle_options)):
@@ -240,6 +246,7 @@ def calculate_wake_options(
             "sleepDate": sleep_date.isoformat() if sleep_date else None,
             "cycleOptions": list(cycle_options),
             "timezone": timezone,
+            "source": source,
         },
         "lightsOutAt": iso_local(lights_out),
         "wakeOptions": options,
@@ -472,11 +479,14 @@ def cmd_weekly(args: argparse.Namespace) -> dict[str, Any]:
 def cmd_wake(args: argparse.Namespace) -> dict[str, Any]:
     if args.sleep_date and not args.sleep_time:
         raise ValueError("sleepDate can only be used with sleepTime")
+    if args.now and (args.sleep_time or args.sleep_date):
+        raise ValueError("now cannot be combined with sleepTime or sleepDate")
     return calculate_wake_options(
         sleep_time=args.sleep_time,
         sleep_date=parse_date(args.sleep_date) if args.sleep_date else None,
         cycle_options=parse_cycles(args.cycles),
         timezone=args.timezone,
+        use_now=args.now,
     )
 
 
@@ -572,6 +582,7 @@ def cmd_self_test(_: argparse.Namespace) -> dict[str, Any]:
     assert by_wake_cycle[4]["wakeAt"].startswith("2026-05-04T05:30")
     assert by_wake_cycle[5]["wakeAt"].startswith("2026-05-04T07:00")
     assert by_wake_cycle[6]["wakeAt"].startswith("2026-05-04T08:30")
+    assert wake["input"]["source"] == "provided_time"
 
     summary = summarize_week(
         [
@@ -643,6 +654,7 @@ def build_parser() -> argparse.ArgumentParser:
     wake = subparsers.add_parser("wake", help="calculate wake options from a lights-out time")
     wake.add_argument("--sleep-time", help="lights-out time as HH:mm; defaults to current local time")
     wake.add_argument("--sleep-date", help="lights-out date as YYYY-MM-DD")
+    wake.add_argument("--now", action="store_true", help="use the current local time as lights-out")
     wake.add_argument("--cycles", help="comma-separated cycle counts, default 4,5,6")
     wake.add_argument("--timezone", help="IANA timezone, e.g. Asia/Shanghai")
     wake.set_defaults(func=cmd_wake)

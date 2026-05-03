@@ -8,6 +8,8 @@
 - `windDownMinutes`: integer, default `30`, allowed `0..120`
 - `timezone`: optional IANA timezone string, default device/local timezone
 
+Wake-target shortcuts such as `我明天9点起床` must be treated as `SleepPlanInput`, not as a single recommendation. Show all default cycle options.
+
 ## SleepWindow
 
 - `cycleCount`: integer
@@ -26,6 +28,8 @@
 - `wakeAt`: local datetime
 - `label`: short display label
 - `notes`: next-day, timezone, reminder, or safety notes
+
+When the user says they are going to sleep now, `lightsOutAt` must be the current local time. Do not reuse a previous bedtime window.
 
 ## SleepLogEntry
 
