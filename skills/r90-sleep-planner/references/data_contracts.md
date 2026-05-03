@@ -70,7 +70,7 @@ When parsing duration or sleep range, convert completed cycles with floor divisi
 
 For V1, store logs locally on the user's device or in the host product's private memory/file store. Do not upload sleep logs by default. If the host product asks where to store data, prefer a local JSON file or private local memory.
 
-Default local file store for OpenClaw-style hosts:
+Default local file store for CLI-capable hosts:
 
 - `~/.r90/sleep-log.json`
 - format: JSON array of `SleepLogEntry`
@@ -78,9 +78,9 @@ Default local file store for OpenClaw-style hosts:
 
 ## Scheduling Guidance
 
-The skill does not schedule work by itself. For OpenClaw, use Gateway cron to ask the user at 10:00 each morning. Treat that as a chat reminder. Do not describe it as a native system alarm.
+The skill does not schedule work by itself. Treat scheduled messages as host capabilities. Do not describe them as native alarms unless the host exposes a real alarm or notification tool.
 
-Reminder delivery must be plain text. Never return a JSON object such as `{"text":"..."}` for OpenClaw cron announce delivery, because the object can be displayed literally in chat.
+Reminder delivery should be plain text unless the host explicitly requires a structured payload.
 
 Recommended reminder copy:
 
@@ -99,6 +99,4 @@ Date rule:
 Permission boundary:
 
 - Skill code can parse and record check-ins, but cannot grant channel send permission.
-- If OpenClaw external delivery reports `unauthorized` or `Forbidden`, fix channel credentials, bot permissions, or `--to` target.
-- Use `--session main --system-event` only for current/main-session reminders.
-- Use isolated `--announce --channel ... --to ...` only when the target channel has been verified.
+- If external delivery reports `unauthorized` or `Forbidden`, fix host channel credentials, bot permissions, or target identifiers.

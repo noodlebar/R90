@@ -9,11 +9,13 @@ Use this skill when the user asks about R90 sleep planning, 90-minute sleep cycl
 
 R90 is planning guidance, not medical advice. Do not diagnose, treat, or promise sleep quality. If the user describes severe insomnia, suspected sleep apnea, long-term fatigue, or health risk, recommend professional help.
 
+Support both Chinese and English. Reply in the user's language. If the user mixes languages, prefer the language of the latest request.
+
 ## Workflow
 
 1. Identify the task:
-   - Bedtime windows: when the user says a wake target such as `我明天9点起床`, calculate and show all 4, 5, and 6 cycle options unless the user gives cycle counts.
-   - Wake suggestions: when the user says they are going to sleep now, calculate wake options by adding 4, 5, and 6 R90 cycles to the current local time.
+   - Bedtime windows: when the user says a wake target such as `我明天9点起床` or `I need to wake up at 9 tomorrow`, calculate and show all 4, 5, and 6 cycle options unless the user gives cycle counts.
+   - Wake suggestions: when the user says they are going to sleep now, such as `我要睡了` or `I am going to sleep now`, calculate wake options by adding 4, 5, and 6 R90 cycles to the current local time.
    - Daily check-in: ask for the easiest possible reply, then parse and record it for the prompted sleep date.
    - Weekly tracking: summarize actual R90 cycles completed this week against a target.
 2. Use the bundled script for arithmetic whenever tools are available. Resolve script paths relative to this skill directory.
@@ -34,14 +36,18 @@ R90 is planning guidance, not medical advice. Do not diagnose, treat, or promise
 7. Daily check-ins are idempotent by sleep date. If the user answers the same morning reminder more than once, update the same prompted date instead of creating a new record for the current date.
 8. Never answer "我要睡了" by reusing a previously calculated bedtime window such as `21:30`. That phrase means the user's lights-out time is now.
 9. Never answer a wake-target shortcut with only one recommendation. Always show the different cycle bedtime windows.
+10. For platform-specific scheduling or delivery behavior, read the relevant adapter reference only when needed:
+    - OpenClaw: `references/openclaw.md`
+    - Codex: `references/codex.md`
+    - MiClaw: `references/miclaw.md`
 
 ## Wake-target Shortcut Flow
 
-When the user says `我明天9点起床`, `明早7点醒`, `明天 09:00 起`, or similar:
+When the user says `我明天9点起床`, `明早7点醒`, `明天 09:00 起`, `I need to wake up at 9 tomorrow`, `wake me at 7 tomorrow`, or similar:
 
 1. Interpret it as a bedtime-window request.
 2. Convert Chinese time to `HH:mm`, for example `9点` -> `09:00`.
-3. Use tomorrow's local date when the user says `明天` or `明早`.
+3. Use tomorrow's local date when the user says `明天`, `明早`, `tomorrow`, or `tomorrow morning`.
 4. Call the bundled script with `windows`.
 5. Show all 4, 5, and 6 cycle options, not just the longest or recommended option.
 6. Do not add a long explanation. Do not say only `23:30 就寝`.
@@ -60,9 +66,21 @@ Preferred Chinese response shape:
 
 If `windDownMinutes` is nonzero, include both `熄灯` and a compact `上床` line. If the user asks for "睡觉时间", treat `lightsOutAt` as the primary time and `inBedAt` as the wind-down time.
 
+Preferred English response shape:
+
+```text
+For a 09:00 wake-up tomorrow:
+
+6 cycles: lights out at 00:00 (9h)
+5 cycles: lights out at 01:30 (7.5h)
+4 cycles: lights out at 03:00 (6h)
+
+With a 30-minute wind-down, start winding down at 23:30 / 01:00 / 02:30.
+```
+
 ## Going-to-sleep Flow
 
-When the user says `我要睡了`, `我现在睡了`, `准备睡觉`, or similar:
+When the user says `我要睡了`, `我现在睡了`, `准备睡觉`, `I am going to sleep now`, `going to bed now`, or similar:
 
 1. Do not manually calculate from memory.
 2. Do not use a previous bedtime recommendation as lights-out.
@@ -79,6 +97,15 @@ Use this prompt style for daily reminders:
 早，记一下昨晚睡眠。
 大约几点睡、几点醒？直接回：23:30-07:00
 不记就回：跳过
+```
+
+English reminder style:
+
+```text
+Morning check-in.
+What time did you roughly fall asleep and wake up?
+Reply like: 23:30-07:00
+Reply skip to skip.
 ```
 
 Avoid this style:
@@ -140,33 +167,7 @@ Summarize a week from a JSON file:
 python3 scripts/r90_calc.py weekly --week-start 2026-04-27 --entries-file sleep-log.json --target 35
 ```
 
-OpenClaw scheduling note:
-
-- `--session main --system-event` wakes the main session. It is good for an in-app/current-session reminder, but it is not a reliable external chat push.
-- To push into Feishu/Slack/Telegram/etc., use isolated cron delivery with `--announce --channel ... --to ...` and valid channel credentials.
-- If OpenClaw reports `unauthorized` or `Forbidden`, the issue is channel auth/target configuration, not this skill. This skill cannot grant chat-channel permissions.
-- For cron-owned isolated jobs, do not ask the agent to use a separate message tool as a fallback; OpenClaw's cron runner owns final delivery.
-- The isolated job's final answer must be plain text. Do not return a message object like `{"text":"..."}` because announce delivery will send that object literally.
-
-In-app/current-session reminder:
-
-```bash
-openclaw cron add --name "R90 morning check-in" --cron "0 10 * * *" --tz "Asia/Shanghai" --session main --system-event "R90 morning check-in. Send exactly this concise prompt in Chinese: 早，记一下昨晚睡眠。大约几点睡、几点醒？直接回：23:30-07:00。不记就回：跳过. When the user replies, use r90_sleep_planner checkin parsing. Record parsed cycles for yesterday, then respond with the updated weekly total in one short sentence." --wake now
-```
-
-External chat push after channel permissions are verified:
-
-```bash
-openclaw cron add --name "R90 morning check-in" --cron "0 10 * * *" --tz "Asia/Shanghai" --session isolated --message "Return only this plain-text message. Do not wrap it in JSON. Do not output a text field. Message: 早，记一下昨晚睡眠。大约几点睡、几点醒？直接回：23:30-07:00。不记就回：跳过" --announce --channel feishu --to "<verified-chat-target>"
-```
-
-If an existing reminder is sending `{"text":"..."}`, inspect and edit that cron job:
-
-```bash
-openclaw cron list
-openclaw cron edit <job-id> --message "Return only this plain-text message. Do not wrap it in JSON. Do not output a text field. Message: 早，记一下昨晚睡眠。大约几点睡、几点醒？直接回：23:30-07:00。不记就回：跳过"
-openclaw cron run <job-id>
-```
+For platform-specific scheduling, reminders, or message delivery, read only the relevant adapter reference under `references/`.
 
 Run built-in validation:
 
@@ -212,4 +213,4 @@ For weekly tracking, include:
 
 ## Data Contract
 
-Read `references/data_contracts.md` if you need exact field names or storage guidance.
+Read `references/data_contracts.md` if you need exact field names or storage guidance. Read platform adapter references only when the user asks to install, schedule, or troubleshoot this skill on that host.
