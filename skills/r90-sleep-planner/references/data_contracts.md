@@ -18,6 +18,15 @@
 - `label`: short display label
 - `notes`: rollover, timezone, or safety notes
 
+## WakeOption
+
+- `cycleCount`: integer
+- `sleepMinutes`: `cycleCount * 90`
+- `lightsOutAt`: local datetime
+- `wakeAt`: local datetime
+- `label`: short display label
+- `notes`: next-day, timezone, reminder, or safety notes
+
 ## SleepLogEntry
 
 - `date`: required local date, `YYYY-MM-DD`
@@ -41,3 +50,13 @@
 ## Storage Guidance
 
 For V1, store logs locally on the user's device or in the host product's private memory/file store. Do not upload sleep logs by default. If the host product asks where to store data, prefer a local JSON file or private local memory.
+
+Default local file store for OpenClaw-style hosts:
+
+- `~/.r90/sleep-log.json`
+- format: JSON array of `SleepLogEntry`
+- same-date records are updated in place, not duplicated
+
+## Scheduling Guidance
+
+The skill does not schedule work by itself. For OpenClaw, use Gateway cron to ask the user at 10:00 each morning. Treat that as a chat reminder. Do not describe it as a native system alarm.
