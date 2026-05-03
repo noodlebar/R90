@@ -98,6 +98,10 @@ python3 skills/r90-sleep-planner/scripts/r90_calc.py windows --wake-time 07:00 -
 
 The project memory and first calculator contracts are complete for the discovery-stage handoff. Implementation stack, UI language, and weekly-history scope remain open product decisions in `STATE.md`.
 
+## License
+
+R90 is released under the MIT License. See `LICENSE` for details.
+
 ## Next steps
 
 1. Choose the implementation stack for the calculator.
