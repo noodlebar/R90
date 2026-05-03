@@ -4,7 +4,9 @@
 from __future__ import annotations
 
 import argparse
+import contextlib
 import json
+import os
 import re
 import sys
 from dataclasses import dataclass
@@ -17,9 +19,15 @@ try:
 except ImportError:  # pragma: no cover - Python 3.9+ has zoneinfo.
     ZoneInfo = None  # type: ignore[assignment]
 
+try:
+    import fcntl
+except ImportError:  # pragma: no cover - non-POSIX fallback.
+    fcntl = None  # type: ignore[assignment]
+
 
 TIME_RE = re.compile(r"^([01]\d|2[0-3]):([0-5]\d)$")
 TIME_IN_TEXT_RE = re.compile(r"\b([01]?\d|2[0-3]):([0-5]\d)\b")
+CHINESE_TIME_IN_TEXT_RE = re.compile(r"(?<!\d)([01]?\d|2[0-3])\s*点\s*(半|[0-5]\d\s*分?)?")
 SLEEP_DURATION_RE = re.compile(
     r"(?<!\d)(\d+(?:\.\d+)?)\s*(?:h|hr|hrs|hour|hours|小时|个小时)\b",
     re.IGNORECASE,
@@ -46,6 +54,17 @@ def parse_hhmm(value: str) -> time:
 
 def time_to_minutes(value: time) -> int:
     return value.hour * 60 + value.minute
+
+
+def extract_times_from_text(value: str) -> list[time]:
+    matches: list[tuple[int, time]] = []
+    for match in TIME_IN_TEXT_RE.finditer(value):
+        matches.append((match.start(), time(hour=int(match.group(1)), minute=int(match.group(2)))))
+    for match in CHINESE_TIME_IN_TEXT_RE.finditer(value):
+        minute_text = (match.group(2) or "").replace(" ", "")
+        minute = 30 if minute_text == "半" else int(minute_text.replace("分", "") or "0")
+        matches.append((match.start(), time(hour=int(match.group(1)), minute=minute)))
+    return [item[1] for item in sorted(matches, key=lambda item: item[0])]
 
 
 def parse_date(value: str | None) -> date:
@@ -117,6 +136,27 @@ def cycles_from_minutes(minutes: int) -> int:
     if minutes < 0:
         raise ValueError("sleep minutes cannot be negative")
     return max(0, min(minutes // 90, 7))
+
+
+def sleep_range_minutes(start: time, end: time) -> int:
+    start_minutes = time_to_minutes(start)
+    end_minutes = time_to_minutes(end)
+    duration_minutes = end_minutes - start_minutes
+    if duration_minutes < 0:
+        duration_minutes += 24 * 60
+
+    # In a morning sleep check-in, "11点-7点" usually means 23:00-07:00,
+    # and "12点-7点" usually means 00:00-07:00.
+    if duration_minutes > 12 * 60 and 1 <= start.hour <= 12 and 1 <= end.hour <= 12:
+        adjusted_start_hour = 0 if start.hour == 12 else start.hour + 12
+        adjusted_start = adjusted_start_hour * 60 + start.minute
+        adjusted_duration = end_minutes - adjusted_start
+        if adjusted_duration < 0:
+            adjusted_duration += 24 * 60
+        if adjusted_duration <= 12 * 60:
+            duration_minutes = adjusted_duration
+
+    return duration_minutes
 
 
 def calculate_windows(input_data: SleepPlanInput) -> list[dict[str, Any]]:
@@ -278,9 +318,23 @@ def load_log_store(store_path: Path) -> list[dict[str, Any]]:
 
 def save_log_store(store_path: Path, entries: list[dict[str, Any]]) -> None:
     store_path.parent.mkdir(parents=True, exist_ok=True)
-    tmp_path = store_path.with_suffix(store_path.suffix + ".tmp")
+    tmp_path = store_path.with_name(f"{store_path.name}.{os.getpid()}.tmp")
     tmp_path.write_text(json.dumps(entries, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     tmp_path.replace(store_path)
+
+
+@contextlib.contextmanager
+def log_store_lock(store_path: Path):
+    lock_path = store_path.with_suffix(store_path.suffix + ".lock")
+    lock_path.parent.mkdir(parents=True, exist_ok=True)
+    with lock_path.open("a+", encoding="utf-8") as lock_file:
+        if fcntl is not None:
+            fcntl.flock(lock_file.fileno(), fcntl.LOCK_EX)
+        try:
+            yield
+        finally:
+            if fcntl is not None:
+                fcntl.flock(lock_file.fileno(), fcntl.LOCK_UN)
 
 
 def record_sleep_log(
@@ -296,30 +350,31 @@ def record_sleep_log(
     if planned_cycles is not None and (planned_cycles < 0 or planned_cycles > 7):
         raise ValueError("plannedCycles must be between 0 and 7")
 
-    entries = load_log_store(store_path)
-    key = entry_date.isoformat()
-    updated_entry = {
-        "date": key,
-        "actualCycles": actual_cycles,
-        "plannedCycles": planned_cycles,
-        "note": note,
-        "updatedAt": local_now(timezone).isoformat(timespec="seconds"),
-    }
+    with log_store_lock(store_path):
+        entries = load_log_store(store_path)
+        key = entry_date.isoformat()
+        updated_entry = {
+            "date": key,
+            "actualCycles": actual_cycles,
+            "plannedCycles": planned_cycles,
+            "note": note,
+            "updatedAt": local_now(timezone).isoformat(timespec="seconds"),
+        }
 
-    replaced = False
-    next_entries: list[dict[str, Any]] = []
-    for entry in entries:
-        if entry.get("date") == key:
+        replaced = False
+        next_entries: list[dict[str, Any]] = []
+        for entry in entries:
+            if entry.get("date") == key:
+                next_entries.append(updated_entry)
+                replaced = True
+            else:
+                next_entries.append(entry)
+        if not replaced:
             next_entries.append(updated_entry)
-            replaced = True
-        else:
-            next_entries.append(entry)
-    if not replaced:
-        next_entries.append(updated_entry)
 
-    next_entries.sort(key=lambda item: str(item.get("date", "")))
-    save_log_store(store_path, next_entries)
-    return {"entry": updated_entry, "entries": next_entries}
+        next_entries.sort(key=lambda item: str(item.get("date", "")))
+        save_log_store(store_path, next_entries)
+        return {"entry": updated_entry, "entries": next_entries, "action": "updated" if replaced else "created"}
 
 
 def parse_checkin_reply(reply: str) -> dict[str, Any]:
@@ -328,18 +383,14 @@ def parse_checkin_reply(reply: str) -> dict[str, Any]:
         return {
             "status": "needs_clarification",
             "reason": "empty reply",
-            "acceptedFormats": ["5", "7.5h", "23:30-07:00", "skip"],
+            "acceptedFormats": ["23:30-07:00", "跳过"],
         }
     if SKIP_RE.search(normalized):
         return {"status": "skipped", "reason": "user skipped check-in"}
 
-    times = [time(hour=int(hour), minute=int(minute)) for hour, minute in TIME_IN_TEXT_RE.findall(normalized)]
+    times = extract_times_from_text(normalized)
     if len(times) >= 2:
-        start_minutes = time_to_minutes(times[0])
-        end_minutes = time_to_minutes(times[1])
-        duration_minutes = end_minutes - start_minutes
-        if duration_minutes < 0:
-            duration_minutes += 24 * 60
+        duration_minutes = sleep_range_minutes(times[0], times[1])
         return {
             "status": "parsed",
             "actualCycles": cycles_from_minutes(duration_minutes),
@@ -372,7 +423,7 @@ def parse_checkin_reply(reply: str) -> dict[str, Any]:
     return {
         "status": "needs_clarification",
         "reason": "reply did not include cycles, duration, or a sleep time range",
-        "acceptedFormats": ["5", "睡了7.5h", "23:30-07:00", "跳过"],
+        "acceptedFormats": ["23:30-07:00", "跳过"],
     }
 
 
@@ -448,6 +499,7 @@ def cmd_record(args: argparse.Namespace) -> dict[str, Any]:
     return {
         "store": str(store_path),
         "recorded": record_result["entry"],
+        "action": record_result["action"],
         "weeklySummary": summarize_week(
             entries=record_result["entries"],
             week_start=week_start,
@@ -462,7 +514,7 @@ def cmd_checkin(args: argparse.Namespace) -> dict[str, Any]:
     if parsed["status"] != "parsed":
         return {
             "checkIn": parsed,
-            "prompt": "回 0-7、睡了几小时，或入睡-起床时间，例如：5 / 7.5h / 23:30-07:00。也可以回“跳过”。",
+            "prompt": "大约几点睡、几点醒？直接回：23:30-07:00。不记就回：跳过。",
         }
 
     if args.date:
@@ -484,6 +536,7 @@ def cmd_checkin(args: argparse.Namespace) -> dict[str, Any]:
         "checkIn": parsed,
         "store": str(store_path),
         "recorded": record_result["entry"],
+        "action": record_result["action"],
         "weeklySummary": summarize_week(
             entries=record_result["entries"],
             week_start=week_start,
@@ -536,6 +589,8 @@ def cmd_self_test(_: argparse.Namespace) -> dict[str, Any]:
     assert parse_checkin_reply("5")["actualCycles"] == 5
     assert parse_checkin_reply("睡了7.5h")["actualCycles"] == 5
     assert parse_checkin_reply("23:30-07:00")["actualCycles"] == 5
+    assert parse_checkin_reply("11点半到7点")["actualCycles"] == 5
+    assert parse_checkin_reply("12点-7点")["actualCycles"] == 4
     assert parse_checkin_reply("跳过")["status"] == "skipped"
 
     store_path = Path("/tmp/r90_calc_self_test_log.json")
@@ -558,6 +613,8 @@ def cmd_self_test(_: argparse.Namespace) -> dict[str, Any]:
         timezone="Asia/Shanghai",
     )
     assert len(recorded["entries"]) == 1
+    assert recorded["action"] == "created"
+    assert recorded_again["action"] == "updated"
     assert recorded_again["entries"][0]["actualCycles"] == 5
     store_path.unlink(missing_ok=True)
 
@@ -602,7 +659,7 @@ def build_parser() -> argparse.ArgumentParser:
     record.set_defaults(func=cmd_record)
 
     checkin = subparsers.add_parser("checkin", help="parse a low-friction check-in reply and record it")
-    checkin.add_argument("--reply", required=True, help="user reply, e.g. 5, 7.5h, 23:30-07:00, skip")
+    checkin.add_argument("--reply", required=True, help="user reply, preferably 23:30-07:00; skip is accepted")
     checkin.add_argument("--date", help="sleep log date as YYYY-MM-DD; defaults to yesterday")
     checkin.add_argument("--planned-cycles", type=int, help="planned cycles, 0..7")
     checkin.add_argument("--note", help="optional short note")

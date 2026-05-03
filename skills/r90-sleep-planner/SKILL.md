@@ -14,13 +14,13 @@ R90 is planning guidance, not medical advice. Do not diagnose, treat, or promise
 1. Identify the task:
    - Bedtime windows: calculate 4, 5, and 6 cycle options unless the user gives cycle counts.
    - Wake suggestions: when the user says they are going to sleep now, calculate wake options by adding 4, 5, and 6 R90 cycles to the lights-out time.
-   - Daily check-in: ask for the easiest possible reply, then parse and record it for yesterday or a specified date.
+   - Daily check-in: ask for the easiest possible reply, then parse and record it for the prompted sleep date.
    - Weekly tracking: summarize actual R90 cycles completed this week against a target.
 2. Use the bundled script for arithmetic whenever tools are available. Resolve script paths relative to this skill directory.
 3. If required inputs are missing, ask only for the missing core input:
    - Bedtime windows require `wakeTime` in `HH:mm`.
    - Wake suggestions can use the current local time when the user says "now"; otherwise ask for `sleepTime` in `HH:mm`.
-   - Daily check-ins accept `0..7`, a sleep duration such as `7.5h`, or a time range such as `23:30-07:00`.
+   - Daily check-ins should ask only for approximate sleep and wake times. Prefer replies like `23:30-07:00`.
    - Weekly tracking requires dated entries with `actualCycles`.
 4. Defaults:
    - `cycleOptions`: `[4, 5, 6]`
@@ -31,14 +31,18 @@ R90 is planning guidance, not medical advice. Do not diagnose, treat, or promise
    - `store`: `~/.r90/sleep-log.json` for local self-reported R90 logs.
 5. Present results in the user's language. For Chinese users, use concise Chinese labels and avoid asking them to calculate R90 manually.
 6. Do not claim to set a system alarm unless the host product exposes an alarm or notification tool. If only OpenClaw cron is available, describe it as a chat reminder.
+7. Daily check-ins are idempotent by sleep date. If the user answers the same morning reminder more than once, update the same prompted date instead of creating a new record for the current date.
 
 ## Morning Check-in UX
+
+Daily reminder output must be plain text. Never wrap the reminder in JSON, do not output `{"text": "..."}`, and do not use a code block.
 
 Use this prompt style for daily reminders:
 
 ```text
-早。昨晚睡得怎么样？
-直接回：5 / 7.5h / 23:30-07:00 / 跳过
+早，记一下昨晚睡眠。
+大约几点睡、几点醒？直接回：23:30-07:00
+不记就回：跳过
 ```
 
 Avoid this style:
@@ -47,7 +51,14 @@ Avoid this style:
 昨晚你完成了几个完整的 R90 睡眠周期？
 ```
 
-Reason: the user should not need to know or calculate R90 cycles in the morning. Parse their simple reply, then explain the recorded result after saving it.
+Reason: the user should not need to know or calculate R90 cycles in the morning. Ask for approximate sleep and wake times, parse the time range, then explain the recorded R90 count after saving it.
+
+Date rule:
+
+- A 10:00 morning check-in records the previous local calendar date by default.
+- If the reminder was for `5月2日`, every reply in that reminder thread updates `2026-05-02`, even if the user replies later on `5月3日`.
+- Do not record today's date from a morning check-in unless the user explicitly says the sleep belongs to today.
+- If a record already exists for the target date, treat the new reply as a correction and say `已更新`, not `已新增`.
 
 ## Script Usage
 
@@ -87,16 +98,32 @@ Summarize a week from a JSON file:
 python3 scripts/r90_calc.py weekly --week-start 2026-04-27 --entries-file sleep-log.json --target 35
 ```
 
-Create a daily OpenClaw chat reminder outside the skill:
+OpenClaw scheduling note:
+
+- `--session main --system-event` wakes the main session. It is good for an in-app/current-session reminder, but it is not a reliable external chat push.
+- To push into Feishu/Slack/Telegram/etc., use isolated cron delivery with `--announce --channel ... --to ...` and valid channel credentials.
+- If OpenClaw reports `unauthorized` or `Forbidden`, the issue is channel auth/target configuration, not this skill. This skill cannot grant chat-channel permissions.
+- For cron-owned isolated jobs, do not ask the agent to use a separate message tool as a fallback; OpenClaw's cron runner owns final delivery.
+- The isolated job's final answer must be plain text. Do not return a message object like `{"text":"..."}` because announce delivery will send that object literally.
+
+In-app/current-session reminder:
 
 ```bash
-openclaw cron add --name "R90 morning check-in" --cron "0 10 * * *" --tz "Asia/Shanghai" --session main --system-event "R90 morning check-in: ask the user how many R90 cycles they completed yesterday. If they answer 0-7, use the r90_sleep_planner skill record flow and then report the updated weekly summary." --wake now
+openclaw cron add --name "R90 morning check-in" --cron "0 10 * * *" --tz "Asia/Shanghai" --session main --system-event "R90 morning check-in. Send exactly this concise prompt in Chinese: 早，记一下昨晚睡眠。大约几点睡、几点醒？直接回：23:30-07:00。不记就回：跳过. When the user replies, use r90_sleep_planner checkin parsing. Record parsed cycles for yesterday, then respond with the updated weekly total in one short sentence." --wake now
 ```
 
-Better low-friction cron prompt:
+External chat push after channel permissions are verified:
 
 ```bash
-openclaw cron add --name "R90 morning check-in" --cron "0 10 * * *" --tz "Asia/Shanghai" --session main --system-event "R90 morning check-in. Send exactly this concise prompt in Chinese: 早。昨晚睡得怎么样？直接回：5 / 7.5h / 23:30-07:00 / 跳过. When the user replies, use r90_sleep_planner checkin parsing. Record parsed cycles for yesterday, then respond with the updated weekly total in one short sentence." --wake now
+openclaw cron add --name "R90 morning check-in" --cron "0 10 * * *" --tz "Asia/Shanghai" --session isolated --message "Return only this plain-text message. Do not wrap it in JSON. Do not output a text field. Message: 早，记一下昨晚睡眠。大约几点睡、几点醒？直接回：23:30-07:00。不记就回：跳过" --announce --channel feishu --to "<verified-chat-target>"
+```
+
+If an existing reminder is sending `{"text":"..."}`, inspect and edit that cron job:
+
+```bash
+openclaw cron list
+openclaw cron edit <job-id> --message "Return only this plain-text message. Do not wrap it in JSON. Do not output a text field. Message: 早，记一下昨晚睡眠。大约几点睡、几点醒？直接回：23:30-07:00。不记就回：跳过"
+openclaw cron run <job-id>
 ```
 
 Run built-in validation:
@@ -125,8 +152,9 @@ For wake suggestions, include:
 For daily check-ins, include:
 
 - date recorded
+- whether the entry was created or updated
 - actual R90 cycles
-- source used to infer cycles when helpful, for example time range or duration
+- source used to infer cycles, normally the sleep/wake time range
 - updated weekly total and gap
 - where the record was stored when relevant
 
