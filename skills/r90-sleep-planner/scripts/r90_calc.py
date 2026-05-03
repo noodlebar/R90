@@ -19,6 +19,13 @@ except ImportError:  # pragma: no cover - Python 3.9+ has zoneinfo.
 
 
 TIME_RE = re.compile(r"^([01]\d|2[0-3]):([0-5]\d)$")
+TIME_IN_TEXT_RE = re.compile(r"\b([01]?\d|2[0-3]):([0-5]\d)\b")
+SLEEP_DURATION_RE = re.compile(
+    r"(?<!\d)(\d+(?:\.\d+)?)\s*(?:h|hr|hrs|hour|hours|小时|个小时)\b",
+    re.IGNORECASE,
+)
+CYCLE_COUNT_RE = re.compile(r"(?<!\d)([0-7])\s*(?:个|次|cycle|cycles|r90|R90|周期)?(?!\d)")
+SKIP_RE = re.compile(r"(skip|pass|later|no\s*record|跳过|略过|稍后|不记|不记录|忘了|不知道)")
 
 
 @dataclass(frozen=True)
@@ -35,6 +42,10 @@ def parse_hhmm(value: str) -> time:
     if not match:
         raise ValueError("wakeTime must use HH:mm in 24-hour time")
     return time(hour=int(match.group(1)), minute=int(match.group(2)))
+
+
+def time_to_minutes(value: time) -> int:
+    return value.hour * 60 + value.minute
 
 
 def parse_date(value: str | None) -> date:
@@ -100,6 +111,12 @@ def local_now(timezone: str | None = None) -> datetime:
 
 def monday_for(value: date) -> date:
     return value - timedelta(days=value.weekday())
+
+
+def cycles_from_minutes(minutes: int) -> int:
+    if minutes < 0:
+        raise ValueError("sleep minutes cannot be negative")
+    return max(0, min(minutes // 90, 7))
 
 
 def calculate_windows(input_data: SleepPlanInput) -> list[dict[str, Any]]:
@@ -305,6 +322,60 @@ def record_sleep_log(
     return {"entry": updated_entry, "entries": next_entries}
 
 
+def parse_checkin_reply(reply: str) -> dict[str, Any]:
+    normalized = reply.strip()
+    if not normalized:
+        return {
+            "status": "needs_clarification",
+            "reason": "empty reply",
+            "acceptedFormats": ["5", "7.5h", "23:30-07:00", "skip"],
+        }
+    if SKIP_RE.search(normalized):
+        return {"status": "skipped", "reason": "user skipped check-in"}
+
+    times = [time(hour=int(hour), minute=int(minute)) for hour, minute in TIME_IN_TEXT_RE.findall(normalized)]
+    if len(times) >= 2:
+        start_minutes = time_to_minutes(times[0])
+        end_minutes = time_to_minutes(times[1])
+        duration_minutes = end_minutes - start_minutes
+        if duration_minutes < 0:
+            duration_minutes += 24 * 60
+        return {
+            "status": "parsed",
+            "actualCycles": cycles_from_minutes(duration_minutes),
+            "source": "time_range",
+            "sleepMinutes": duration_minutes,
+            "normalizedReply": normalized,
+        }
+
+    duration_match = SLEEP_DURATION_RE.search(normalized)
+    if duration_match:
+        duration_minutes = int(float(duration_match.group(1)) * 60)
+        return {
+            "status": "parsed",
+            "actualCycles": cycles_from_minutes(duration_minutes),
+            "source": "duration",
+            "sleepMinutes": duration_minutes,
+            "normalizedReply": normalized,
+        }
+
+    cycle_match = CYCLE_COUNT_RE.search(normalized)
+    if cycle_match:
+        return {
+            "status": "parsed",
+            "actualCycles": int(cycle_match.group(1)),
+            "source": "cycle_count",
+            "sleepMinutes": int(cycle_match.group(1)) * 90,
+            "normalizedReply": normalized,
+        }
+
+    return {
+        "status": "needs_clarification",
+        "reason": "reply did not include cycles, duration, or a sleep time range",
+        "acceptedFormats": ["5", "睡了7.5h", "23:30-07:00", "跳过"],
+    }
+
+
 def read_entries(args: argparse.Namespace) -> list[dict[str, Any]]:
     if args.entries_file:
         data = json.loads(Path(args.entries_file).read_text(encoding="utf-8"))
@@ -386,6 +457,42 @@ def cmd_record(args: argparse.Namespace) -> dict[str, Any]:
     }
 
 
+def cmd_checkin(args: argparse.Namespace) -> dict[str, Any]:
+    parsed = parse_checkin_reply(args.reply)
+    if parsed["status"] != "parsed":
+        return {
+            "checkIn": parsed,
+            "prompt": "回 0-7、睡了几小时，或入睡-起床时间，例如：5 / 7.5h / 23:30-07:00。也可以回“跳过”。",
+        }
+
+    if args.date:
+        entry_date = parse_date(args.date)
+    else:
+        entry_date = local_now(args.timezone).date() - timedelta(days=1)
+
+    store_path = Path(args.store).expanduser()
+    record_result = record_sleep_log(
+        store_path=store_path,
+        entry_date=entry_date,
+        actual_cycles=int(parsed["actualCycles"]),
+        planned_cycles=args.planned_cycles,
+        note=args.note,
+        timezone=args.timezone,
+    )
+    week_start = parse_date(args.week_start) if args.week_start else monday_for(entry_date)
+    return {
+        "checkIn": parsed,
+        "store": str(store_path),
+        "recorded": record_result["entry"],
+        "weeklySummary": summarize_week(
+            entries=record_result["entries"],
+            week_start=week_start,
+            target_cycles=args.target,
+        ),
+        "disclaimer": "R90 logs are self-reported planning records, not verified sleep measurements.",
+    }
+
+
 def cmd_self_test(_: argparse.Namespace) -> dict[str, Any]:
     windows = calculate_windows(
         SleepPlanInput(
@@ -426,6 +533,11 @@ def cmd_self_test(_: argparse.Namespace) -> dict[str, Any]:
     assert summary["cyclesToMinimum"] == 13
     assert summary["status"] == "below_minimum"
 
+    assert parse_checkin_reply("5")["actualCycles"] == 5
+    assert parse_checkin_reply("睡了7.5h")["actualCycles"] == 5
+    assert parse_checkin_reply("23:30-07:00")["actualCycles"] == 5
+    assert parse_checkin_reply("跳过")["status"] == "skipped"
+
     store_path = Path("/tmp/r90_calc_self_test_log.json")
     if store_path.exists():
         store_path.unlink()
@@ -449,7 +561,7 @@ def cmd_self_test(_: argparse.Namespace) -> dict[str, Any]:
     assert recorded_again["entries"][0]["actualCycles"] == 5
     store_path.unlink(missing_ok=True)
 
-    return {"ok": True, "tests": ["windows", "wake", "weekly", "record"]}
+    return {"ok": True, "tests": ["windows", "wake", "weekly", "record", "checkin"]}
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -488,6 +600,17 @@ def build_parser() -> argparse.ArgumentParser:
     record.add_argument("--target", type=int, default=35, help="weekly target cycles")
     record.add_argument("--timezone", help="IANA timezone, e.g. Asia/Shanghai")
     record.set_defaults(func=cmd_record)
+
+    checkin = subparsers.add_parser("checkin", help="parse a low-friction check-in reply and record it")
+    checkin.add_argument("--reply", required=True, help="user reply, e.g. 5, 7.5h, 23:30-07:00, skip")
+    checkin.add_argument("--date", help="sleep log date as YYYY-MM-DD; defaults to yesterday")
+    checkin.add_argument("--planned-cycles", type=int, help="planned cycles, 0..7")
+    checkin.add_argument("--note", help="optional short note")
+    checkin.add_argument("--store", default="~/.r90/sleep-log.json", help="local JSON log store")
+    checkin.add_argument("--week-start", help="week start as YYYY-MM-DD; defaults to Monday of the entry week")
+    checkin.add_argument("--target", type=int, default=35, help="weekly target cycles")
+    checkin.add_argument("--timezone", help="IANA timezone, e.g. Asia/Shanghai")
+    checkin.set_defaults(func=cmd_checkin)
 
     self_test = subparsers.add_parser("self-test", help="run built-in validation")
     self_test.set_defaults(func=cmd_self_test)

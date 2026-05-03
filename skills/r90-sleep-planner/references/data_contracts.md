@@ -35,6 +35,17 @@
 - `note`: optional string
 - `updatedAt`: optional ISO datetime
 
+## CheckInReply
+
+Accepted low-friction formats:
+
+- exact cycle count: `5`, `5个`, `5 cycles`
+- duration: `7.5h`, `睡了7.5小时`
+- sleep range: `23:30-07:00`, `23:30 到 07:00`
+- skip: `跳过`, `稍后`, `skip`
+
+When parsing duration or sleep range, convert completed cycles with floor division: `sleepMinutes // 90`, capped to `0..7`.
+
 ## WeeklyCycleSummary
 
 - `weekStart`: local date, `YYYY-MM-DD`
@@ -60,3 +71,10 @@ Default local file store for OpenClaw-style hosts:
 ## Scheduling Guidance
 
 The skill does not schedule work by itself. For OpenClaw, use Gateway cron to ask the user at 10:00 each morning. Treat that as a chat reminder. Do not describe it as a native system alarm.
+
+Recommended reminder copy:
+
+```text
+早。昨晚睡得怎么样？
+直接回：5 / 7.5h / 23:30-07:00 / 跳过
+```

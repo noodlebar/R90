@@ -5,7 +5,7 @@ description: Calculate R90 bedtime windows, recommend wake times from lights-out
 
 # R90 Sleep Planner
 
-Use this skill when the user asks about R90 sleep planning, 90-minute sleep cycles, bedtime windows from a wake target, wake-time suggestions from "I am going to sleep now", daily R90 check-ins, or weekly R90 completion tracking.
+Use this skill when the user asks about R90 sleep planning, 90-minute sleep cycles, bedtime windows from a wake target, wake-time suggestions from "I am going to sleep now", low-friction daily R90 check-ins, or weekly R90 completion tracking.
 
 R90 is planning guidance, not medical advice. Do not diagnose, treat, or promise sleep quality. If the user describes severe insomnia, suspected sleep apnea, long-term fatigue, or health risk, recommend professional help.
 
@@ -14,13 +14,13 @@ R90 is planning guidance, not medical advice. Do not diagnose, treat, or promise
 1. Identify the task:
    - Bedtime windows: calculate 4, 5, and 6 cycle options unless the user gives cycle counts.
    - Wake suggestions: when the user says they are going to sleep now, calculate wake options by adding 4, 5, and 6 R90 cycles to the lights-out time.
-   - Daily check-in: record the user's self-reported completed R90 count for yesterday or a specified date.
+   - Daily check-in: ask for the easiest possible reply, then parse and record it for yesterday or a specified date.
    - Weekly tracking: summarize actual R90 cycles completed this week against a target.
 2. Use the bundled script for arithmetic whenever tools are available. Resolve script paths relative to this skill directory.
 3. If required inputs are missing, ask only for the missing core input:
    - Bedtime windows require `wakeTime` in `HH:mm`.
    - Wake suggestions can use the current local time when the user says "now"; otherwise ask for `sleepTime` in `HH:mm`.
-   - Daily check-ins require `actualCycles` as an integer from `0..7`.
+   - Daily check-ins accept `0..7`, a sleep duration such as `7.5h`, or a time range such as `23:30-07:00`.
    - Weekly tracking requires dated entries with `actualCycles`.
 4. Defaults:
    - `cycleOptions`: `[4, 5, 6]`
@@ -29,8 +29,25 @@ R90 is planning guidance, not medical advice. Do not diagnose, treat, or promise
    - `minimumUsefulRange`: `[28, 30]`
    - `timezone`: device/local timezone unless the user gives an IANA timezone.
    - `store`: `~/.r90/sleep-log.json` for local self-reported R90 logs.
-5. Present results in the user's language. For Chinese users, use concise Chinese labels.
+5. Present results in the user's language. For Chinese users, use concise Chinese labels and avoid asking them to calculate R90 manually.
 6. Do not claim to set a system alarm unless the host product exposes an alarm or notification tool. If only OpenClaw cron is available, describe it as a chat reminder.
+
+## Morning Check-in UX
+
+Use this prompt style for daily reminders:
+
+```text
+早。昨晚睡得怎么样？
+直接回：5 / 7.5h / 23:30-07:00 / 跳过
+```
+
+Avoid this style:
+
+```text
+昨晚你完成了几个完整的 R90 睡眠周期？
+```
+
+Reason: the user should not need to know or calculate R90 cycles in the morning. Parse their simple reply, then explain the recorded result after saving it.
 
 ## Script Usage
 
@@ -58,6 +75,12 @@ Record a daily self-reported check-in and return the updated weekly summary:
 python3 scripts/r90_calc.py record --date 2026-05-02 --actual-cycles 5 --store ~/.r90/sleep-log.json --timezone Asia/Shanghai
 ```
 
+Parse a low-friction daily check-in reply and record it:
+
+```bash
+python3 scripts/r90_calc.py checkin --reply "23:30-07:00" --date 2026-05-02 --store ~/.r90/sleep-log.json --timezone Asia/Shanghai
+```
+
 Summarize a week from a JSON file:
 
 ```bash
@@ -68,6 +91,12 @@ Create a daily OpenClaw chat reminder outside the skill:
 
 ```bash
 openclaw cron add --name "R90 morning check-in" --cron "0 10 * * *" --tz "Asia/Shanghai" --session main --system-event "R90 morning check-in: ask the user how many R90 cycles they completed yesterday. If they answer 0-7, use the r90_sleep_planner skill record flow and then report the updated weekly summary." --wake now
+```
+
+Better low-friction cron prompt:
+
+```bash
+openclaw cron add --name "R90 morning check-in" --cron "0 10 * * *" --tz "Asia/Shanghai" --session main --system-event "R90 morning check-in. Send exactly this concise prompt in Chinese: 早。昨晚睡得怎么样？直接回：5 / 7.5h / 23:30-07:00 / 跳过. When the user replies, use r90_sleep_planner checkin parsing. Record parsed cycles for yesterday, then respond with the updated weekly total in one short sentence." --wake now
 ```
 
 Run built-in validation:
@@ -97,6 +126,7 @@ For daily check-ins, include:
 
 - date recorded
 - actual R90 cycles
+- source used to infer cycles when helpful, for example time range or duration
 - updated weekly total and gap
 - where the record was stored when relevant
 
