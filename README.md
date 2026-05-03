@@ -1,109 +1,262 @@
 # R90
 
-R90 sleep-window calculator for planning bedtime windows from wake targets using Nick Littlehales' 90-minute cycle method.
+R90 is a Codex skill and deterministic CLI utility for planning sleep around 90-minute recovery cycles. It calculates bedtime windows from a target wake time, suggests wake times from a lights-out time, and records lightweight weekly R90 cycle logs.
 
-## Product intent
+This project is wellness planning guidance, not medical advice. It does not diagnose sleep problems, treat medical conditions, or guarantee sleep quality.
 
-R90 helps users plan practical bedtime windows from a fixed wake target. Instead of asking "how many hours should I sleep tonight?", the app counts backwards in 90-minute recovery cycles and presents a small set of bedtime options that fit the user's next morning.
+## What Is Implemented
 
-The first version is a local utility calculator, not a medical sleep diagnosis product.
+The current repository ships a working Codex skill:
 
-## R90 method assumptions
+- `r90_sleep_planner`: the skill prompt, response rules, and safety boundaries.
+- `r90_calc.py`: the deterministic calculator used by the skill for all arithmetic.
+- Local JSON logging for self-reported sleep-cycle check-ins.
+- Built-in validation through `self-test`.
 
-- A sleep cycle is planned as a 90-minute block.
-- The wake time is the anchor; bedtime windows are calculated backwards from it.
-- Users compare nights by cycle count, with weekly totals as the larger view.
-- The calculator should make 4, 5, and 6 cycle options easy to scan.
-- Optional pre-sleep wind-down time is separate from the sleep cycle math.
+There is not yet a standalone web or mobile app. The first usable surface is the Codex skill plus the bundled CLI script.
 
-## First shipping outcome
+## Main Features
 
-A single-screen calculator that lets a user enter:
+- Bedtime windows from a wake target, using 4, 5, and 6 cycles by default.
+- Wake suggestions from a planned lights-out time, including "I am going to sleep now" flows.
+- Optional wind-down buffer, defaulting to 30 minutes, kept separate from sleep duration.
+- Explicit previous-day and next-day rollover notes.
+- IANA timezone support through Python `zoneinfo`.
+- Daily check-in parsing from low-friction replies such as `23:30-07:00`, `睡了7.5h`, `5`, or `跳过`.
+- Idempotent local sleep-log updates by date.
+- Weekly R90 summary with target cycles, minimum useful range, and per-day rows.
+- Conservative health language and non-clinical disclaimers.
 
-- target wake time
-- desired cycle count or recommended options
-- optional wind-down buffer
-- timezone or local-device time handling
+## Repository Layout
 
-It returns:
-
-- recommended in-bed time
-- lights-out time
-- total planned sleep duration
-- cycle count
-- weekly cycle impact
-- a clear note that this is planning guidance, not clinical advice
-
-## Codex 启动顺序
-
-1. 先读本文件，理解项目目标、范围和当前结构。
-2. 再读 `STATE.md`，确认当前阶段、风险和下一步。
-3. 再读 `SAFEGUARDS.md` 和 `codex/MODES.md`，确认当前任务属于 `Explore`、`Build` 还是 `Release`。
-4. 再读 `DECISIONS.md`，避免重复推翻已有方向。
-5. 再读 `WORKFLOWS.md`，按既有流程推进。
-6. 再进入实际代码、数据、素材或脚本目录。
-7. 最后按需读 `DATA-CONTRACTS.md`、`USER-FLOWS.md`。
-8. 再读 `AGENTS.md`，确认角色和写入边界。
-
-## Project Memory
-
-- `STATE.md`: 当前阶段、风险和下一步
-- `SAFEGUARDS.md`: 默认安全边界和验证底线
-- `DECISIONS.md`: 关键项目决策
-- `WORKFLOWS.md`: 复用工作流
-- `codex/MODES.md`: `Explore / Build / Release` 模式定义
-- `DATA-CONTRACTS.md`: 领域专项运行文档
-- `USER-FLOWS.md`: 领域专项运行文档
-- `AGENTS.md`: 多 agent 角色和写入边界
-
-## Current shape
-
-- domain: `utility apps`
-- product docs for an R90 sleep-window calculator
-- data contracts and user flows for first calculator release
-- safety boundaries for wellness guidance
-- 这个项目遵循 Portfolio OS 运行模型
-
-## Repository layout
-
-- `skills/r90-sleep-planner/`: Codex skill for R90 bedtime windows, wake suggestions, check-ins, and weekly cycle tracking.
-- `skills/r90-sleep-planner/scripts/r90_calc.py`: deterministic calculator and local log utility.
-- `skills/r90-sleep-planner/references/data_contracts.md`: exact skill-level contracts for generated R90 behavior.
+- `skills/r90-sleep-planner/SKILL.md`: Codex skill instructions and response behavior.
+- `skills/r90-sleep-planner/scripts/r90_calc.py`: CLI calculator and local log utility.
+- `skills/r90-sleep-planner/references/data_contracts.md`: exact skill-level data contracts.
 - `DATA-CONTRACTS.md`: product-level input, output, and validation contracts.
 - `USER-FLOWS.md`: first calculator flows and edge cases.
 - `SAFEGUARDS.md`: health, data, and release boundaries.
-- `STATE.md`: current project status and next milestone.
+- `STATE.md`: current project stage, risks, and next milestone.
+- `DECISIONS.md`: project decisions and tradeoffs.
+- `WORKFLOWS.md`: repeatable implementation workflow.
+- `codex/MODES.md`: Explore, Build, and Release mode definitions.
 
-## Local validation
+## Requirements
 
-Run the bundled calculator self-test:
+- Python 3.9 or newer.
+- No third-party Python packages are required.
+- A Codex environment that supports local skills, if you want to deploy it as a skill.
+
+## Deploy As A Codex Skill
+
+Clone the repository:
 
 ```bash
-python3 skills/r90-sleep-planner/scripts/r90_calc.py self-test
+git clone https://github.com/noodlebar/R90.git
+cd R90
+```
+
+Install the skill into your Codex skills directory:
+
+```bash
+mkdir -p "${CODEX_HOME:-$HOME/.codex}/skills/r90-sleep-planner"
+cp -R skills/r90-sleep-planner/. "${CODEX_HOME:-$HOME/.codex}/skills/r90-sleep-planner/"
+```
+
+Validate the deployed copy:
+
+```bash
+python3 "${CODEX_HOME:-$HOME/.codex}/skills/r90-sleep-planner/scripts/r90_calc.py" self-test
 ```
 
 Expected result:
 
 ```json
-{"ok": true}
+{
+  "ok": true,
+  "tests": ["windows", "wake", "weekly", "record", "checkin"]
+}
 ```
 
-Try a bedtime-window calculation:
+After installation, ask Codex questions such as:
+
+```text
+我明天 9 点起床，几点睡？
+```
+
+```text
+我要睡了，帮我算几个适合的起床时间
+```
+
+```text
+早，昨晚 23:30-07:00
+```
+
+The skill is designed to answer in the user's language. Chinese prompts receive concise Chinese sleep-window summaries.
+
+## Use The CLI Directly
+
+You can run the calculator from the repository without installing the skill:
 
 ```bash
-python3 skills/r90-sleep-planner/scripts/r90_calc.py windows --wake-time 07:00 --wake-date 2026-05-04 --wind-down 30 --cycles 4,5,6 --timezone Asia/Shanghai
+python3 skills/r90-sleep-planner/scripts/r90_calc.py self-test
 ```
 
-## Documentation status
+### Calculate Bedtime Windows
 
-The project memory and first calculator contracts are complete for the discovery-stage handoff. Implementation stack, UI language, and weekly-history scope remain open product decisions in `STATE.md`.
+```bash
+python3 skills/r90-sleep-planner/scripts/r90_calc.py windows \
+  --wake-time 07:00 \
+  --wake-date 2026-05-04 \
+  --wind-down 30 \
+  --cycles 4,5,6 \
+  --timezone Asia/Shanghai
+```
+
+This returns JSON with:
+
+- `inBedAt`: when wind-down should begin.
+- `lightsOutAt`: the planned start of sleep.
+- `wakeAt`: the target wake datetime.
+- `cycleCount` and `sleepMinutes`.
+- rollover or timezone offset notes when relevant.
+
+### Calculate Wake Suggestions
+
+From a provided lights-out time:
+
+```bash
+python3 skills/r90-sleep-planner/scripts/r90_calc.py wake \
+  --sleep-time 23:30 \
+  --sleep-date 2026-05-03 \
+  --cycles 4,5,6 \
+  --timezone Asia/Shanghai
+```
+
+From the current local time:
+
+```bash
+python3 skills/r90-sleep-planner/scripts/r90_calc.py wake \
+  --now \
+  --cycles 4,5,6 \
+  --timezone Asia/Shanghai
+```
+
+### Record A Daily Check-In
+
+Record a known cycle count:
+
+```bash
+python3 skills/r90-sleep-planner/scripts/r90_calc.py record \
+  --date 2026-05-02 \
+  --actual-cycles 5 \
+  --planned-cycles 6 \
+  --store ~/.r90/sleep-log.json \
+  --timezone Asia/Shanghai
+```
+
+Parse an easy morning reply and record it:
+
+```bash
+python3 skills/r90-sleep-planner/scripts/r90_calc.py checkin \
+  --reply "23:30-07:00" \
+  --date 2026-05-02 \
+  --store ~/.r90/sleep-log.json \
+  --timezone Asia/Shanghai
+```
+
+Accepted check-in replies include:
+
+- `23:30-07:00`
+- `11点半到7点`
+- `睡了7.5h`
+- `5`
+- `跳过`
+
+Daily records are upserts by `date`, so repeating the same check-in date updates the existing record instead of creating duplicates.
+
+### Summarize A Week
+
+```bash
+python3 skills/r90-sleep-planner/scripts/r90_calc.py weekly \
+  --week-start 2026-04-27 \
+  --entries-file ~/.r90/sleep-log.json \
+  --target 35
+```
+
+The weekly summary reports:
+
+- actual completed cycles.
+- planned cycles where available.
+- target cycles, defaulting to 35.
+- cycles remaining to target.
+- minimum useful range, defaulting to 28-30 cycles.
+- seven daily rows.
+
+## Data Storage
+
+The CLI stores self-reported logs as a local JSON array when `--store` is used. The default store for skill-oriented usage is:
+
+```text
+~/.r90/sleep-log.json
+```
+
+Records look like:
+
+```json
+{
+  "date": "2026-05-02",
+  "actualCycles": 5,
+  "plannedCycles": 6,
+  "note": "optional note",
+  "updatedAt": "2026-05-03T10:00:00+08:00"
+}
+```
+
+The project does not upload sleep logs by default.
+
+## Skill Behavior Notes
+
+- Wake-target shortcuts such as `我明天9点起床` must show all default 4, 5, and 6 cycle options.
+- `我要睡了` means the current time is the lights-out reference. The skill must not reuse an earlier bedtime recommendation.
+- Morning check-ins should ask for approximate sleep and wake times, not ask the user to calculate cycles manually.
+- Reminder output should be plain text when used in scheduled chat jobs.
+- Severe insomnia, suspected sleep apnea, long-term fatigue, or other health-risk contexts should be handled conservatively and directed toward professional help.
+
+## Local Validation
+
+Run:
+
+```bash
+python3 skills/r90-sleep-planner/scripts/r90_calc.py self-test
+```
+
+The self-test covers:
+
+- bedtime windows.
+- wake suggestions.
+- weekly summary.
+- daily record upserts.
+- check-in parsing.
+
+## Project Status
+
+The implemented deliverable is the R90 Codex skill and CLI calculator. The next product milestone is a local MVP calculator screen built around the tested calculation function.
+
+Open decisions are tracked in `STATE.md`, including implementation stack, UI language, and whether weekly history belongs in v1.
+
+## Codex Project Memory
+
+This repository follows a Portfolio OS operating model:
+
+- `STATE.md`: current stage, risks, and next step.
+- `SAFEGUARDS.md`: safety boundaries and validation baseline.
+- `DECISIONS.md`: key project decisions.
+- `WORKFLOWS.md`: reusable workflows.
+- `codex/MODES.md`: `Explore`, `Build`, and `Release` definitions.
+- `DATA-CONTRACTS.md`: product-level data contracts.
+- `USER-FLOWS.md`: calculator user flows.
+- `AGENTS.md`: multi-agent roles and write boundaries.
 
 ## License
 
 R90 is released under the MIT License. See `LICENSE` for details.
-
-## Next steps
-
-1. Choose the implementation stack for the calculator.
-2. Build the first local calculator screen and tests.
-3. Add examples for common wake times and weekly cycle planning.
