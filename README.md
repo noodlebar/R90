@@ -64,6 +64,40 @@ It returns:
 - safety boundaries for wellness guidance
 - 这个项目遵循 Portfolio OS 运行模型
 
+## Repository layout
+
+- `skills/r90-sleep-planner/`: Codex skill for R90 bedtime windows, wake suggestions, check-ins, and weekly cycle tracking.
+- `skills/r90-sleep-planner/scripts/r90_calc.py`: deterministic calculator and local log utility.
+- `skills/r90-sleep-planner/references/data_contracts.md`: exact skill-level contracts for generated R90 behavior.
+- `DATA-CONTRACTS.md`: product-level input, output, and validation contracts.
+- `USER-FLOWS.md`: first calculator flows and edge cases.
+- `SAFEGUARDS.md`: health, data, and release boundaries.
+- `STATE.md`: current project status and next milestone.
+
+## Local validation
+
+Run the bundled calculator self-test:
+
+```bash
+python3 skills/r90-sleep-planner/scripts/r90_calc.py self-test
+```
+
+Expected result:
+
+```json
+{"ok": true}
+```
+
+Try a bedtime-window calculation:
+
+```bash
+python3 skills/r90-sleep-planner/scripts/r90_calc.py windows --wake-time 07:00 --wake-date 2026-05-04 --wind-down 30 --cycles 4,5,6 --timezone Asia/Shanghai
+```
+
+## Documentation status
+
+The project memory and first calculator contracts are complete for the discovery-stage handoff. Implementation stack, UI language, and weekly-history scope remain open product decisions in `STATE.md`.
+
 ## Next steps
 
 1. Choose the implementation stack for the calculator.
