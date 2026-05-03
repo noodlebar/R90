@@ -24,7 +24,7 @@ Why:
 The initial goal is consistency and safety, not perfect abstraction.
 
 Tradeoffs:
-Some sections will stay placeholder-level until the first real milestone is built.
+Some sections will stay lightweight until the first real milestone is built, then become more specific from actual usage.
 
 ## R90 - Anchor calculations on wake time
 Context:
