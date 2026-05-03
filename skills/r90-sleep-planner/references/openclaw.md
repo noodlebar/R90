@@ -4,13 +4,26 @@ Use this reference only when installing, scheduling, or troubleshooting R90 insi
 
 ## Placement
 
-OpenClaw can load workspace skills from:
+OpenClaw uses R90 as a single `SKILL.md` file. Paste or upload this file into the OpenClaw skill configuration:
 
 ```text
-<workspace>/skills/r90-sleep-planner/
+skills/r90-sleep-planner/SKILL.md
 ```
 
-The skill folder must contain `SKILL.md`; bundled scripts are resolved relative to this folder.
+The skill should still prefer `python3 scripts/r90_calc.py` when a shell/tool bridge can reach it. For OpenClaw, deploy only `SKILL.md`; when scripts are unavailable, use the manual algorithms in `SKILL.md`.
+
+For an OpenClaw setup with shell access, place the script at a stable path such as:
+
+```text
+~/openclaw-tools/r90_calc.py
+```
+
+Then replace script examples in `SKILL.md` with the absolute command path:
+
+```bash
+python3 ~/openclaw-tools/r90_calc.py wake --now --cycles 4,5,6 --timezone Asia/Shanghai
+python3 ~/openclaw-tools/r90_calc.py checkin --reply "23:30-07:00" --date 2026-05-02 --store ~/.r90/sleep-log.json --timezone Asia/Shanghai
+```
 
 ## Scheduling
 

@@ -18,7 +18,7 @@ Support both Chinese and English. Reply in the user's language. If the user mixe
    - Wake suggestions: when the user says they are going to sleep now, such as `我要睡了` or `I am going to sleep now`, calculate wake options by adding 4, 5, and 6 R90 cycles to the current local time.
    - Daily check-in: ask for the easiest possible reply, then parse and record it for the prompted sleep date.
    - Weekly tracking: summarize actual R90 cycles completed this week against a target.
-2. Use the bundled script for arithmetic whenever tools are available. Resolve script paths relative to this skill directory.
+2. Prefer deterministic tools for arithmetic whenever available. First try the bundled script, resolved relative to this skill directory. If the script or shell tool is unavailable, use the manual fallback algorithm in this file and say the result was calculated without the script.
 3. If required inputs are missing, ask only for the missing core input:
    - Bedtime windows require `wakeTime` in `HH:mm`.
    - Wake suggestions must use the current local time when the user says "now", "我要睡了", "准备睡了", or similar; otherwise ask for `sleepTime` in `HH:mm`.
@@ -41,6 +41,53 @@ Support both Chinese and English. Reply in the user's language. If the user mixe
     - Codex: `references/codex.md`
     - MiClaw: `references/miclaw.md`
 
+## Calculation Priority and Fallback
+
+Use this order:
+
+1. Bundled script: `python3 scripts/r90_calc.py ...`
+2. Host action/tool that exposes the same `windows`, `wake`, `checkin`, `record`, or `weekly` contract.
+3. Manual fallback algorithm below.
+
+Do not fail just because the script cannot be called. If using the fallback, keep the response concise and include a short note such as `脚本不可用，已按 R90 规则直接计算。` or `Script unavailable; calculated directly from the R90 rules.`
+
+Manual fallback constants:
+
+- One R90 cycle is exactly 90 minutes.
+- Default cycle options are 4, 5, and 6.
+- Default wind-down is 30 minutes.
+- Default weekly target is 35 cycles.
+- Use the device/local timezone unless the user gives a timezone.
+
+Manual bedtime-window algorithm:
+
+1. Parse the wake target into local `wakeDate` and `wakeTime` in `HH:mm`.
+2. For each cycle count, usually 6, 5, then 4:
+   - `sleepMinutes = cycleCount * 90`
+   - `lightsOutAt = wakeDate wakeTime - sleepMinutes`
+   - `inBedAt = lightsOutAt - windDownMinutes`
+3. Show the date only when the result crosses a calendar day or the date matters.
+4. Always show all default 4/5/6 options unless the user explicitly requested different cycles.
+
+Manual going-to-sleep algorithm:
+
+1. Treat `我要睡了`, `准备睡觉`, `I am going to sleep now`, and similar as lights-out now.
+2. Use the current local date and time as `lightsOutAt`; never reuse an earlier recommendation.
+3. For each cycle count, usually 4, 5, then 6:
+   - `wakeAt = lightsOutAt + cycleCount * 90 minutes`
+4. Show the reference lights-out time and the 4/5/6 wake options.
+
+Manual check-in parsing algorithm:
+
+1. If the reply means skip, such as `跳过`, `skip`, or `不记`, mark the check-in skipped.
+2. If the reply has a sleep/wake range such as `23:30-07:00`, `23:30 到 07:00`, `11点半到7点`, or `12点-7点`, parse the first time as sleep and the second as wake.
+3. If wake time is earlier than sleep time, treat wake as the next calendar day.
+4. For ambiguous morning replies where both times are 1-12 and the raw duration is more than 12 hours, treat the first time as evening when that yields a duration of 12 hours or less. Examples: `11点-7点` means `23:00-07:00`; `12点-7点` means `00:00-07:00`.
+5. `actualCycles = floor(durationMinutes / 90)`, clamped to 0 through 7.
+6. If the user gives duration directly, such as `睡了7.5h`, convert hours to minutes and apply the same cycle formula.
+7. If the user gives a cycle count directly, such as `5` or `5 cycles`, use that count.
+8. If no persistent store is available, report the parsed cycles without claiming the record was saved.
+
 ## Wake-target Shortcut Flow
 
 When the user says `我明天9点起床`, `明早7点醒`, `明天 09:00 起`, `I need to wake up at 9 tomorrow`, `wake me at 7 tomorrow`, or similar:
@@ -48,7 +95,7 @@ When the user says `我明天9点起床`, `明早7点醒`, `明天 09:00 起`, `
 1. Interpret it as a bedtime-window request.
 2. Convert Chinese time to `HH:mm`, for example `9点` -> `09:00`.
 3. Use tomorrow's local date when the user says `明天`, `明早`, `tomorrow`, or `tomorrow morning`.
-4. Call the bundled script with `windows`.
+4. Call the bundled script with `windows` if available; otherwise use the manual bedtime-window algorithm.
 5. Show all 4, 5, and 6 cycle options, not just the longest or recommended option.
 6. Do not add a long explanation. Do not say only `23:30 就寝`.
 
@@ -84,8 +131,8 @@ When the user says `我要睡了`, `我现在睡了`, `准备睡觉`, `I am goin
 
 1. Do not manually calculate from memory.
 2. Do not use a previous bedtime recommendation as lights-out.
-3. Call the bundled script with `wake --now`.
-4. Present the script's `lightsOutAt` as the actual reference time.
+3. Call the bundled script with `wake --now` if available; otherwise use the manual going-to-sleep algorithm.
+4. Present the actual reference `lightsOutAt`.
 
 ## Morning Check-in UX
 

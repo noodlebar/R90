@@ -35,6 +35,7 @@
 - `r90_calc.py`：确定性计算脚本，负责所有时间和周统计计算。
 - 本地 JSON 睡眠记录，支持按日期 upsert，不重复记录同一天。
 - OpenClaw、Codex、MiClaw 平台适配说明。
+- 双轨计算策略：优先使用脚本或 host action；脚本不可用时，`SKILL.md` 内置算法可降级计算。
 - `self-test` 内置验证。
 
 目前还没有独立 Web 或移动 App；当前可用入口是 Agent Skill 和 CLI。
@@ -65,12 +66,13 @@
 - 不需要第三方 Python 包。
 - 如果作为 skill 部署，宿主需要能读取 `SKILL.md`。
 - 如果要使用确定性计算，宿主需要能执行 `python3 scripts/r90_calc.py`，或提供等价工具桥接。
+- 如果宿主只能读取单个 `SKILL.md` 且不能执行脚本，skill 会按内置 R90 算法降级，但不会声称已经写入本地日志。
 
 ## 平台支持
 
 | 平台 | 状态 | 推荐用途 |
 | --- | --- | --- |
-| OpenClaw | 支持 workspace skills | 聊天 skill、cron 提醒、外部渠道推送 |
+| OpenClaw | 支持单文件 `SKILL.md` | 聊天 skill、cron 提醒、外部渠道推送；脚本需作为外部工具单独配置 |
 | Codex | 支持本地 skills | 本地 skill、CLI 验证、Codex 自动化 |
 | MiClaw | 提供适配契约 | 注册为 skill/tool bundle，或暴露脚本为 host action |
 | 纯 CLI | 完整支持 | 直接计算和本地 JSON 记录 |
@@ -94,17 +96,30 @@ python3 skills/r90-sleep-planner/scripts/r90_calc.py self-test
 
 ## OpenClaw 部署
 
-### Workspace 安装
+### 单文件安装
 
-OpenClaw 可以从 workspace 的 `skills/` 目录加载 skill。确保目录存在：
+当前 OpenClaw skill 入口按单文件 `SKILL.md` 使用。把以下文件内容粘贴或上传到 OpenClaw 的 skill 配置中：
 
 ```text
-<workspace>/skills/r90-sleep-planner/SKILL.md
+skills/r90-sleep-planner/SKILL.md
 ```
 
-如果 OpenClaw workspace 就是本仓库，不需要额外复制。
+单文件模式下，skill 会优先尝试调用脚本；如果脚本不可用，就按 `SKILL.md` 内置算法直接计算 4/5/6 周期、解析 `23:30-07:00` 这类打卡回复。没有持久化工具时，它只返回解析结果，不会声称已保存。
 
-刷新并检查：
+如果 OpenClaw 有 shell/tool 权限，可以把脚本单独放到固定路径：
+
+```text
+~/openclaw-tools/r90_calc.py
+```
+
+然后把 `SKILL.md` 中的脚本示例改为绝对路径，例如：
+
+```bash
+python3 ~/openclaw-tools/r90_calc.py wake --now --cycles 4,5,6 --timezone Asia/Shanghai
+python3 ~/openclaw-tools/r90_calc.py checkin --reply "23:30-07:00" --date 2026-05-02 --store ~/.r90/sleep-log.json --timezone Asia/Shanghai
+```
+
+配置后可检查 skill 是否加载：
 
 ```bash
 openclaw gateway restart
@@ -264,6 +279,7 @@ python3 skills/r90-sleep-planner/scripts/r90_calc.py weekly \
 - `我明天9点起床` 这类快捷指令必须展示默认 4/5/6 周期。
 - `我要睡了` 表示以当前时间为入睡参考，不能复用之前推荐的 bedtime。
 - 早晨打卡只问大约入睡和起床时间，不要求用户自己计算 R90。
+- 计算优先级是脚本、host action、`SKILL.md` 内置算法；脚本不可用时仍要给出降级结果。
 - 定时提醒输出应是纯文本。
 - 严重失眠、疑似睡眠呼吸暂停、长期疲劳等情况应提示寻求专业帮助。
 
@@ -279,6 +295,7 @@ R90 currently ships as a portable Agent Skill and deterministic CLI utility:
 - `r90_calc.py`: deterministic calculator used for all arithmetic.
 - Local JSON logging for self-reported sleep-cycle check-ins.
 - Platform adapter notes for OpenClaw, Codex, and MiClaw.
+- Dual-track calculation: prefer the script or a host action; fall back to the manual algorithm embedded in `SKILL.md` when scripts are unavailable.
 - Built-in validation through `self-test`.
 
 There is no standalone web or mobile app yet. The usable surfaces are the Agent Skill and the bundled CLI script.
@@ -310,12 +327,13 @@ There is no standalone web or mobile app yet. The usable surfaces are the Agent 
 - No third-party Python packages.
 - An agent host that can read `SKILL.md`, if deploying as a skill.
 - Shell access to run `python3 scripts/r90_calc.py`, or a host tool bridge that exposes the script commands.
+- If the host can only read a single `SKILL.md` and cannot execute scripts, the skill can still calculate from the embedded R90 rules, but it must not claim local logs were saved.
 
 ## Platform Support
 
 | Platform | Status | Best Use |
 | --- | --- | --- |
-| OpenClaw | Supported through workspace skills | Chat skill plus cron reminders and external channel delivery |
+| OpenClaw | Supported through single-file `SKILL.md` | Chat skill plus cron reminders and external channel delivery; configure the script separately as an external tool |
 | Codex | Supported through local skills | Local skill execution, CLI validation, and Codex automations where available |
 | MiClaw | Adapter contract provided | Register as a skill/tool bundle or expose script commands as host actions |
 | Plain CLI | Fully supported | Direct deterministic calculations and local JSON logs |
@@ -339,13 +357,28 @@ Expected result:
 
 ## OpenClaw Deployment
 
-OpenClaw can load workspace skills from:
+OpenClaw uses the skill as a single `SKILL.md` file. Paste or upload this file into the OpenClaw skill configuration:
 
 ```text
-<workspace>/skills/r90-sleep-planner/SKILL.md
+skills/r90-sleep-planner/SKILL.md
 ```
 
-Refresh skill loading if needed:
+In single-file mode, the skill will still try to call the script first; if the script is unavailable, it calculates 4/5/6 cycle windows and parses check-ins such as `23:30-07:00` from the embedded rules. Without a persistence tool, it should report the parsed result without claiming the log was saved.
+
+If OpenClaw has shell/tool access, place the script at a stable path:
+
+```text
+~/openclaw-tools/r90_calc.py
+```
+
+Then replace script examples in `SKILL.md` with absolute commands:
+
+```bash
+python3 ~/openclaw-tools/r90_calc.py wake --now --cycles 4,5,6 --timezone Asia/Shanghai
+python3 ~/openclaw-tools/r90_calc.py checkin --reply "23:30-07:00" --date 2026-05-02 --store ~/.r90/sleep-log.json --timezone Asia/Shanghai
+```
+
+Check skill loading if needed:
 
 ```bash
 openclaw gateway restart
