@@ -246,9 +246,11 @@ For daily check-ins, include:
 - date recorded
 - whether the entry was created or updated
 - actual R90 cycles
+- sleep duration from the parsed reply when available, using `sleepDurationDisplay` or exact hours such as `8.25h`; do not round `8.25h` to `8.2h`
 - source used to infer cycles, normally the sleep/wake time range
 - updated weekly total and gap
 - where the record was stored when relevant
+- only the final result; do not expose internal arithmetic, implementation notes, or phrases like `脚本用了 round()` / `我来修一下`
 
 For weekly tracking, include:
 

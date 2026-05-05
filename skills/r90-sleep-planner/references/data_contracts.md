@@ -54,6 +54,13 @@ For morning reminders, ask only for approximate sleep and wake times. Keep exact
 
 When parsing duration or sleep range, convert completed cycles with floor division: `sleepMinutes // 90`, capped to `0..7`.
 
+Parsed check-in responses should also expose display-safe duration fields:
+
+- `sleepHours`: numeric hours rounded to two decimals, for example `8.25`
+- `sleepDurationDisplay`: localized exact duration text, for example `8小时15分钟`
+
+User-facing summaries should use these fields or equivalent exact formatting. Do not collapse `8.25h` into one decimal place such as `8.2h`.
+
 ## WeeklyCycleSummary
 
 - `weekStart`: local date, `YYYY-MM-DD`

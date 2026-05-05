@@ -138,6 +138,34 @@ def cycles_from_minutes(minutes: int) -> int:
     return max(0, min(minutes // 90, 7))
 
 
+def format_duration_minutes(minutes: int) -> str:
+    if minutes < 0:
+        raise ValueError("duration minutes cannot be negative")
+    hours, remainder = divmod(minutes, 60)
+    if hours and remainder:
+        return f"{hours}小时{remainder}分钟"
+    if hours:
+        return f"{hours}小时"
+    return f"{remainder}分钟"
+
+
+def parsed_checkin_payload(
+    actual_cycles: int,
+    source: str,
+    sleep_minutes: int,
+    normalized_reply: str,
+) -> dict[str, Any]:
+    return {
+        "status": "parsed",
+        "actualCycles": actual_cycles,
+        "source": source,
+        "sleepMinutes": sleep_minutes,
+        "sleepHours": round(sleep_minutes / 60, 2),
+        "sleepDurationDisplay": format_duration_minutes(sleep_minutes),
+        "normalizedReply": normalized_reply,
+    }
+
+
 def sleep_range_minutes(start: time, end: time) -> int:
     start_minutes = time_to_minutes(start)
     end_minutes = time_to_minutes(end)
@@ -398,34 +426,32 @@ def parse_checkin_reply(reply: str) -> dict[str, Any]:
     times = extract_times_from_text(normalized)
     if len(times) >= 2:
         duration_minutes = sleep_range_minutes(times[0], times[1])
-        return {
-            "status": "parsed",
-            "actualCycles": cycles_from_minutes(duration_minutes),
-            "source": "time_range",
-            "sleepMinutes": duration_minutes,
-            "normalizedReply": normalized,
-        }
+        return parsed_checkin_payload(
+            actual_cycles=cycles_from_minutes(duration_minutes),
+            source="time_range",
+            sleep_minutes=duration_minutes,
+            normalized_reply=normalized,
+        )
 
     duration_match = SLEEP_DURATION_RE.search(normalized)
     if duration_match:
         duration_minutes = int(float(duration_match.group(1)) * 60)
-        return {
-            "status": "parsed",
-            "actualCycles": cycles_from_minutes(duration_minutes),
-            "source": "duration",
-            "sleepMinutes": duration_minutes,
-            "normalizedReply": normalized,
-        }
+        return parsed_checkin_payload(
+            actual_cycles=cycles_from_minutes(duration_minutes),
+            source="duration",
+            sleep_minutes=duration_minutes,
+            normalized_reply=normalized,
+        )
 
     cycle_match = CYCLE_COUNT_RE.search(normalized)
     if cycle_match:
-        return {
-            "status": "parsed",
-            "actualCycles": int(cycle_match.group(1)),
-            "source": "cycle_count",
-            "sleepMinutes": int(cycle_match.group(1)) * 90,
-            "normalizedReply": normalized,
-        }
+        actual_cycles = int(cycle_match.group(1))
+        return parsed_checkin_payload(
+            actual_cycles=actual_cycles,
+            source="cycle_count",
+            sleep_minutes=actual_cycles * 90,
+            normalized_reply=normalized,
+        )
 
     return {
         "status": "needs_clarification",
@@ -600,6 +626,8 @@ def cmd_self_test(_: argparse.Namespace) -> dict[str, Any]:
     assert parse_checkin_reply("5")["actualCycles"] == 5
     assert parse_checkin_reply("睡了7.5h")["actualCycles"] == 5
     assert parse_checkin_reply("23:30-07:00")["actualCycles"] == 5
+    assert parse_checkin_reply("0:00-8:15")["sleepHours"] == 8.25
+    assert parse_checkin_reply("0:00-8:15")["sleepDurationDisplay"] == "8小时15分钟"
     assert parse_checkin_reply("11点半到7点")["actualCycles"] == 5
     assert parse_checkin_reply("12点-7点")["actualCycles"] == 4
     assert parse_checkin_reply("跳过")["status"] == "skipped"
