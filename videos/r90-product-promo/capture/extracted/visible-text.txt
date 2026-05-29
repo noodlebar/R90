@@ -1,0 +1,657 @@
+[a] Skip to content
+[h2] Navigation Menu
+[a] Sign in
+[button] Platform
+[button] Solutions
+[button] Resources
+[button] Open Source
+[button] Enterprise
+[span] Search or jump to...
+[h1] Search code, repositories, users, issues, pull requests...
+[label] Search
+[span] Clear
+[a] Search syntax tips
+[h1] Provide feedback
+[p] We read every piece of feedback, and take your input very seriously.
+[label] Include my email address so I can be contacted
+[button] Cancel
+[button] Submit feedback
+[h1] Saved searches
+[h2] Use saved searches to filter your results more quickly
+[label] Name
+[label] Query
+[p] To see all available qualifiers, see our
+[a] documentation
+[button] Cancel
+[button] Create saved search
+[a] Sign in
+[a] Sign up
+[a] Reload
+[a] Reload
+[a] Reload
+[a] noodlebar
+[a] R90
+[span] Public
+[a] Notifications
+[a] Fork
+[span] Star
+[span] Pull requests
+[span] Projects
+[span] Security and quality
+[span] Insights
+[h1] noodlebar/R90
+[span] main
+[span] Branch
+[span] Tags
+[span] Go to file
+[span] Code
+[h2] Folders and files
+[span] Name
+[span] Name
+[span] Last commit message
+[span] Last commit date
+[h2] Latest commit
+[a] noodlebar
+[a] Document OpenClaw single-file fallback and script priority
+[relative-time] May 3, 2026
+[a] 699f8e8
+[relative-time] May 3, 2026
+[h2] History
+[span] 12 Commits
+[a] codex
+[a] codex
+[a] Initial R90 project scaffold
+[relative-time] May 1, 2026
+[span] skills/
+[span] r90-sleep-planner
+[span] skills/
+[span] r90-sleep-planner
+[a] Document OpenClaw single-file fallback and script priority
+[relative-time] May 3, 2026
+[a] .gitignore
+[a] .gitignore
+[a] Initial R90 project scaffold
+[relative-time] May 1, 2026
+[a] AGENTS.md
+[a] AGENTS.md
+[a] Initial R90 project scaffold
+[relative-time] May 1, 2026
+[a] DATA-CONTRACTS.md
+[a] DATA-CONTRACTS.md
+[a] Initial R90 project scaffold
+[relative-time] May 1, 2026
+[a] DECISIONS.md
+[a] DECISIONS.md
+[a] Clarify R90 documentation status
+[relative-time] May 3, 2026
+[a] LICENSE
+[a] LICENSE
+[a] Add MIT license
+[relative-time] May 3, 2026
+[a] README.md
+[a] README.md
+[a] Document OpenClaw single-file fallback and script priority
+[relative-time] May 3, 2026
+[a] SAFEGUARDS.md
+[a] SAFEGUARDS.md
+[a] Initial R90 project scaffold
+[relative-time] May 1, 2026
+[a] STATE.md
+[a] STATE.md
+[a] Initial R90 project scaffold
+[relative-time] May 1, 2026
+[a] USER-FLOWS.md
+[a] USER-FLOWS.md
+[a] Initial R90 project scaffold
+[relative-time] May 1, 2026
+[a] WORKFLOWS.md
+[a] WORKFLOWS.md
+[a] Initial R90 project scaffold
+[relative-time] May 1, 2026
+[button] View all files
+[h2] Repository files navigation
+[span] MIT license
+[h1] R90
+[h2] Product Intent / 产品意图
+[p] ：R90 是一个可移植的 Agent Skill 和确定性 CLI 工具，用 90 分钟睡眠周期帮助用户围绕目标起床时间规划睡眠窗口，也支持“我要睡了”时反推适合的起床时间，并记录一周完成了多少个 R90 周期。
+[strong] English
+[p] : R90 is a portable Agent Skill and deterministic CLI utility for planning sleep around 90-minute recovery cycles. It calculates bedtime windows from a target wake time, suggests wake times from a lights-out time, and records lightweight weekly R90 cycle logs.
+[strong] 安全边界 / Safety Boundary
+[p] ：R90 只提供睡眠计划和自我记录参考，不是医疗建议；它不诊断睡眠问题、不治疗疾病，也不保证睡眠质量。R90 is planning guidance, not medical advice.
+[h2] R90 Method Assumptions / R90 方法假设
+[li] ：一个 R90 周期按 90 分钟计算。
+[strong] English
+[li] : One R90 cycle is treated as a 90-minute block.
+[li] ：起床时间是锚点；睡觉窗口从目标起床时间倒推。
+[strong] English
+[li] : Wake time is the anchor; bedtime windows are calculated backwards from it.
+[li] ：默认展示 4、5、6 个周期，方便用户在睡眠时长和现实安排之间选择。
+[strong] English
+[li] : The default options are 4, 5, and 6 cycles so users can compare practical choices.
+[code] wind-down
+[li] 是睡前准备时间，不计入实际睡眠时长。
+[strong] English
+[li] : Wind-down is preparation time and is not counted as sleep duration.
+[li] ：一周追踪用用户自报记录统计，不代表设备验证过的真实睡眠。
+[strong] English
+[li] : Weekly tracking uses self-reported logs, not verified sleep measurements.
+[li] ：遇到严重失眠、疑似睡眠呼吸暂停、长期疲劳等情况，应寻求专业帮助。
+[strong] English
+[li] : Severe insomnia, suspected sleep apnea, or long-term fatigue should be handled with professional help.
+[h1] 中文说明
+[h2] 当前实现
+[p] 当前仓库交付的是一个可移植 Agent Skill 和 CLI 工具：
+[code] r90_sleep_planner
+[li] ：skill 提示词、回复规则和安全边界。
+[code] r90_calc.py
+[li] ：确定性计算脚本，负责所有时间和周统计计算。
+[li] 本地 JSON 睡眠记录，支持按日期 upsert，不重复记录同一天。
+[li] OpenClaw、Codex、MiClaw 平台适配说明。
+[li] 双轨计算策略：优先使用脚本或 host action；脚本不可用时，
+[code] SKILL.md
+[li] 内置算法可降级计算。
+[code] self-test
+[li] 内置验证。
+[p] 目前还没有独立 Web 或移动 App；当前可用入口是 Agent Skill 和 CLI。
+[h2] 主要能力
+[li] 输入“我明天9点起床”，展示 4/5/6 周期的睡觉窗口。
+[li] 输入“我要睡了”，以当前时间为入睡参考，推荐 4/5/6 周期的起床时间。
+[li] 默认 30 分钟 wind-down，且不计入睡眠时长。
+[li] 支持跨天提示和 IANA 时区。
+[li] 支持早晨低成本打卡：
+[code] 23:30-07:00
+[code] 11点半到7点
+[code] 睡了7.5h
+[li] 本地周统计：目标默认 35 个周期，最低参考范围默认 28-30 个周期。
+[li] 保守健康文案，不做医疗承诺。
+[h2] 仓库结构
+[code] skills/r90-sleep-planner/SKILL.md
+[li] ：通用 skill 指令和回复行为。
+[code] skills/r90-sleep-planner/scripts/r90_calc.py
+[li] ：CLI 计算器和本地记录工具。
+[code] skills/r90-sleep-planner/references/data_contracts.md
+[li] ：skill 数据契约。
+[code] skills/r90-sleep-planner/references/openclaw.md
+[li] ：OpenClaw 安装、cron 和推送说明。
+[code] skills/r90-sleep-planner/references/codex.md
+[li] ：Codex 安装、执行和自动化说明。
+[code] skills/r90-sleep-planner/references/miclaw.md
+[li] ：MiClaw 兼容和工具契约说明。
+[code] DATA-CONTRACTS.md
+[code] USER-FLOWS.md
+[code] SAFEGUARDS.md
+[code] STATE.md
+[li] ：产品级项目记忆。
+[h2] 环境要求
+[li] Python 3.9 或更新版本。
+[li] 不需要第三方 Python 包。
+[li] 如果作为 skill 部署，宿主需要能读取
+[code] SKILL.md
+[li] 如果要使用确定性计算，宿主需要能执行
+[code] python3 scripts/r90_calc.py
+[li] ，或提供等价工具桥接。
+[li] 如果宿主只能读取单个
+[code] SKILL.md
+[li] 且不能执行脚本，skill 会按内置 R90 算法降级，但不会声称已经写入本地日志。
+[h2] 平台支持
+[th] 推荐用途
+[td] OpenClaw
+[td] 支持单文件
+[code] SKILL.md
+[td] 聊天 skill、cron 提醒、外部渠道推送；脚本需作为外部工具单独配置
+[td] Codex
+[td] 支持本地 skills
+[td] 本地 skill、CLI 验证、Codex 自动化
+[td] MiClaw
+[td] 提供适配契约
+[td] 注册为 skill/tool bundle，或暴露脚本为 host action
+[td] 纯 CLI
+[td] 完整支持
+[td] 直接计算和本地 JSON 记录
+[h2] 获取和验证
+[pre] git clone https://github.com/noodlebar/R90.git
+[pre] R90
+python3 skills/r90-sleep-planner/scripts/r90_calc.py self-test
+[p] 预期结果：
+[span] "ok"
+[span] true
+[span] "tests"
+[pre] : [
+[span] windows
+[span] wake
+[span] weekly
+[span] record
+[span] checkin
+[pre] ]
+}
+[h2] OpenClaw 部署
+[h3] 单文件安装
+[p] 当前 OpenClaw skill 入口按单文件
+[code] SKILL.md
+[p] 使用。把以下文件内容粘贴或上传到 OpenClaw 的 skill 配置中：
+[code] skills/r90-sleep-planner/SKILL.md
+[p] 单文件模式下，skill 会优先尝试调用脚本；如果脚本不可用，就按
+[code] SKILL.md
+[p] 内置算法直接计算 4/5/6 周期、解析
+[code] 23:30-07:00
+[p] 这类打卡回复。没有持久化工具时，它只返回解析结果，不会声称已保存。
+[p] 如果 OpenClaw 有 shell/tool 权限，可以把脚本单独放到固定路径：
+[code] ~/openclaw-tools/r90_calc.py
+[p] 然后把
+[code] SKILL.md
+[p] 中的脚本示例改为绝对路径，例如：
+[pre] python3
+[pre] /openclaw-tools/r90_calc.py wake --now --cycles 4,5,6 --timezone Asia/Shanghai
+python3
+[pre] /openclaw-tools/r90_calc.py checkin --reply
+[span] 23:30-07:00
+[pre] --date 2026-05-02 --store
+[pre] /.r90/sleep-log.json --timezone Asia/Shanghai
+[p] 配置后可检查 skill 是否加载：
+[pre] openclaw gateway restart
+openclaw skills list
+[p] 可测试：
+[code] 我明天9点起床
+[code] 我要睡了
+[h3] OpenClaw 早晨提醒
+[p] 当前会话提醒：
+[pre] openclaw cron add --name
+[span] R90 morning check-in
+[pre] --cron
+[span] 0 10 * * *
+[pre] --tz
+[span] Asia/Shanghai
+[pre] --session main --system-event
+[span] R90 morning check-in. Send exactly this concise prompt in Chinese: 早，记一下昨晚睡眠。大约几点睡、几点醒？直接回：23:30-07:00。不记就回：跳过. When the user replies, use r90_sleep_planner checkin parsing. Record parsed cycles for yesterday, then respond with the updated weekly total in one short sentence.
+[pre] --wake now
+[p] 外部聊天推送需先确认渠道权限和目标 ID：
+[pre] openclaw cron add --name
+[span] R90 morning check-in
+[pre] --cron
+[span] 0 10 * * *
+[pre] --tz
+[span] Asia/Shanghai
+[pre] --session isolated --message
+[span] Return only this plain-text message. Do not wrap it in JSON. Do not output a text field. Message: 早，记一下昨晚睡眠。大约几点睡、几点醒？直接回：23:30-07:00。不记就回：跳过
+[pre] --announce --channel feishu --to
+[span] <verified-chat-target>
+[p] 如果推送显示成
+[code] {"text":"..."}
+[p] ，说明 cron message 需要改成纯文本输出。更多说明见
+[code] skills/r90-sleep-planner/references/openclaw.md
+[h2] Codex 部署
+[p] 复制 skill 到 Codex skills 目录：
+[pre] mkdir -p
+[span] ${CODEX_HOME
+[span] $HOME
+[span] .codex}
+[span] /skills/r90-sleep-planner
+[pre] cp -R skills/r90-sleep-planner/.
+[span] ${CODEX_HOME
+[span] $HOME
+[span] .codex}
+[span] /skills/r90-sleep-planner/
+[p] 验证部署副本：
+[pre] python3
+[span] ${CODEX_HOME
+[span] $HOME
+[span] .codex}
+[span] /skills/r90-sleep-planner/scripts/r90_calc.py
+[pre] self-test
+[p] 可测试：
+[code] 我明天 9 点起床，几点睡？
+[code] 我要睡了，帮我算几个适合的起床时间
+[code] 早，昨晚 23:30-07:00
+[p] 如果 Codex 环境提供 automations/reminders，提醒文案应保持纯文本：
+[code] 早，记一下昨晚睡眠。
+大约几点睡、几点醒？直接回：23:30-07:00
+不记就回：跳过
+[p] 用户回复后，再调用
+[code] checkin
+[p] 记录对应睡眠日期。更多说明见
+[code] skills/r90-sleep-planner/references/codex.md
+[h2] MiClaw 部署
+[p] MiClaw 是否能直接加载取决于宿主实现。R90 的最低要求是：
+[li] 能读取
+[code] SKILL.md
+[li] ，或把内容注册为系统/工具指令。
+[li] 能执行
+[code] python3 scripts/r90_calc.py
+[li] ，或暴露等价 host action。
+[li] 可选：私有本地存储
+[code] ~/.r90/sleep-log.json
+[li] 可选：宿主提醒/推送能力。
+[p] 推荐工具契约：
+[code] r90.windows(wakeTime, wakeDate, windDownMinutes=30, cycleOptions=[4,5,6], timezone)
+r90.wake(now=true | sleepTime, sleepDate, cycleOptions=[4,5,6], timezone)
+r90.checkin(reply, date=yesterday, store="~/.r90/sleep-log.json", timezone)
+r90.weekly(weekStart, entriesFile | entriesJson, target=35)
+[p] 用户可见回复应渲染为纯文本；原始 JSON 只用于调试或内部状态。更多说明见
+[code] skills/r90-sleep-planner/references/miclaw.md
+[h2] CLI 直接使用
+[h3] 计算起床目标对应的睡觉窗口
+[pre] python3 skills/r90-sleep-planner/scripts/r90_calc.py windows \
+  --wake-time 09:00 \
+  --wake-date 2026-05-04 \
+  --wind-down 30 \
+  --cycles 4,5,6 \
+  --timezone Asia/Shanghai
+[h3] “我要睡了”时计算起床时间
+[pre] python3 skills/r90-sleep-planner/scripts/r90_calc.py wake \
+  --now \
+  --cycles 4,5,6 \
+  --timezone Asia/Shanghai
+[h3] 记录早晨打卡
+[pre] python3 skills/r90-sleep-planner/scripts/r90_calc.py checkin \
+  --reply
+[span] 23:30-07:00
+[pre] \
+  --date 2026-05-02 \
+  --store
+[pre] /.r90/sleep-log.json \
+  --timezone Asia/Shanghai
+[h3] 查看一周统计
+[pre] python3 skills/r90-sleep-planner/scripts/r90_calc.py weekly \
+  --week-start 2026-04-27 \
+  --entries-file
+[pre] /.r90/sleep-log.json \
+  --target 35
+[h2] 数据存储
+[p] 默认本地记录文件：
+[code] ~/.r90/sleep-log.json
+[p] 示例记录：
+[span] "date"
+[span] 2026-05-02
+[span] "actualCycles"
+[span] "plannedCycles"
+[span] "note"
+[span] optional note
+[span] "updatedAt"
+[span] 2026-05-03T10:00:00+08:00
+[p] 本项目默认不上传睡眠日志。同一天重复记录会更新已有记录，不会创建重复条目。
+[h2] 行为规则
+[code] 我明天9点起床
+[li] 这类快捷指令必须展示默认 4/5/6 周期。
+[code] 我要睡了
+[li] 表示以当前时间为入睡参考，不能复用之前推荐的 bedtime。
+[li] 早晨打卡只问大约入睡和起床时间，不要求用户自己计算 R90。
+[li] 计算优先级是脚本、host action、
+[code] SKILL.md
+[li] 内置算法；脚本不可用时仍要给出降级结果。
+[li] 定时提醒输出应是纯文本。
+[li] 严重失眠、疑似睡眠呼吸暂停、长期疲劳等情况应提示寻求专业帮助。
+[h1] English Guide
+[h2] Current Deliverable
+[p] R90 currently ships as a portable Agent Skill and deterministic CLI utility:
+[code] r90_sleep_planner
+[li] : skill instructions, response rules, and safety boundaries.
+[code] r90_calc.py
+[li] : deterministic calculator used for all arithmetic.
+[li] Local JSON logging for self-reported sleep-cycle check-ins.
+[li] Platform adapter notes for OpenClaw, Codex, and MiClaw.
+[li] Dual-track calculation: prefer the script or a host action; fall back to the manual algorithm embedded in
+[code] SKILL.md
+[li] when scripts are unavailable.
+[li] Built-in validation through
+[code] self-test
+[p] There is no standalone web or mobile app yet. The usable surfaces are the Agent Skill and the bundled CLI script.
+[h2] Features
+[li] Bedtime windows from a wake target, showing 4, 5, and 6 cycles by default.
+[li] Wake suggestions from a provided lights-out time or from "I am going to sleep now".
+[li] Optional wind-down buffer, defaulting to 30 minutes, kept separate from sleep duration.
+[li] Previous-day and next-day rollover notes.
+[li] IANA timezone support through Python
+[code] zoneinfo
+[li] Low-friction check-in parsing, such as
+[code] 23:30-07:00
+[code] slept 7.5h
+[li] , or
+[code] skip
+[li] Idempotent local sleep-log updates by date.
+[li] Weekly R90 summary with target cycles, minimum useful range, and per-day rows.
+[li] Conservative, non-clinical health language.
+[h2] Repository Layout
+[code] skills/r90-sleep-planner/SKILL.md
+[li] : portable skill instructions and response behavior.
+[code] skills/r90-sleep-planner/scripts/r90_calc.py
+[li] : CLI calculator and local log utility.
+[code] skills/r90-sleep-planner/references/data_contracts.md
+[li] : skill-level data contracts.
+[code] skills/r90-sleep-planner/references/openclaw.md
+[li] : OpenClaw installation, cron, and delivery notes.
+[code] skills/r90-sleep-planner/references/codex.md
+[li] : Codex placement, execution, and automation notes.
+[code] skills/r90-sleep-planner/references/miclaw.md
+[li] : MiClaw compatibility and tool-contract notes.
+[h2] Requirements
+[li] Python 3.9 or newer.
+[li] No third-party Python packages.
+[li] An agent host that can read
+[code] SKILL.md
+[li] , if deploying as a skill.
+[li] Shell access to run
+[code] python3 scripts/r90_calc.py
+[li] , or a host tool bridge that exposes the script commands.
+[li] If the host can only read a single
+[code] SKILL.md
+[li] and cannot execute scripts, the skill can still calculate from the embedded R90 rules, but it must not claim local logs were saved.
+[h2] Platform Support
+[th] Platform
+[th] Status
+[th] Best Use
+[td] OpenClaw
+[td] Supported through single-file
+[code] SKILL.md
+[td] Chat skill plus cron reminders and external channel delivery; configure the script separately as an external tool
+[td] Codex
+[td] Supported through local skills
+[td] Local skill execution, CLI validation, and Codex automations where available
+[td] MiClaw
+[td] Adapter contract provided
+[td] Register as a skill/tool bundle or expose script commands as host actions
+[td] Plain CLI
+[td] Fully supported
+[td] Direct deterministic calculations and local JSON logs
+[h2] Get And Validate
+[pre] git clone https://github.com/noodlebar/R90.git
+[pre] R90
+python3 skills/r90-sleep-planner/scripts/r90_calc.py self-test
+[p] Expected result:
+[span] "ok"
+[span] true
+[span] "tests"
+[pre] : [
+[span] windows
+[span] wake
+[span] weekly
+[span] record
+[span] checkin
+[pre] ]
+}
+[h2] OpenClaw Deployment
+[p] OpenClaw uses the skill as a single
+[code] SKILL.md
+[p] file. Paste or upload this file into the OpenClaw skill configuration:
+[code] skills/r90-sleep-planner/SKILL.md
+[p] In single-file mode, the skill will still try to call the script first; if the script is unavailable, it calculates 4/5/6 cycle windows and parses check-ins such as
+[code] 23:30-07:00
+[p] from the embedded rules. Without a persistence tool, it should report the parsed result without claiming the log was saved.
+[p] If OpenClaw has shell/tool access, place the script at a stable path:
+[code] ~/openclaw-tools/r90_calc.py
+[p] Then replace script examples in
+[code] SKILL.md
+[p] with absolute commands:
+[pre] python3
+[pre] /openclaw-tools/r90_calc.py wake --now --cycles 4,5,6 --timezone Asia/Shanghai
+python3
+[pre] /openclaw-tools/r90_calc.py checkin --reply
+[span] 23:30-07:00
+[pre] --date 2026-05-02 --store
+[pre] /.r90/sleep-log.json --timezone Asia/Shanghai
+[p] Check skill loading if needed:
+[pre] openclaw gateway restart
+openclaw skills list
+[p] Example prompts:
+[code] I need to wake up at 9 tomorrow.
+[code] I am going to sleep now.
+[p] Morning reminder, current session:
+[pre] openclaw cron add --name
+[span] R90 morning check-in
+[pre] --cron
+[span] 0 10 * * *
+[pre] --tz
+[span] Asia/Shanghai
+[pre] --session main --system-event
+[span] R90 morning check-in. Send exactly this concise prompt in English: Morning check-in. What time did you roughly fall asleep and wake up? Reply like: 23:30-07:00. Reply skip to skip. When the user replies, use r90_sleep_planner checkin parsing. Record parsed cycles for yesterday, then respond with the updated weekly total in one short sentence.
+[pre] --wake now
+[p] More OpenClaw notes are in
+[code] skills/r90-sleep-planner/references/openclaw.md
+[h2] Codex Deployment
+[pre] mkdir -p
+[span] ${CODEX_HOME
+[span] $HOME
+[span] .codex}
+[span] /skills/r90-sleep-planner
+[pre] cp -R skills/r90-sleep-planner/.
+[span] ${CODEX_HOME
+[span] $HOME
+[span] .codex}
+[span] /skills/r90-sleep-planner/
+[pre] python3
+[span] ${CODEX_HOME
+[span] $HOME
+[span] .codex}
+[span] /skills/r90-sleep-planner/scripts/r90_calc.py
+[pre] self-test
+[p] Example prompts:
+[code] I need to wake up at 9 tomorrow. What are my sleep windows?
+[code] I am going to sleep now. What are good wake times?
+[p] If Codex provides automations/reminders, use plain text:
+[code] Morning check-in.
+What time did you roughly fall asleep and wake up?
+Reply like: 23:30-07:00
+Reply skip to skip.
+[p] More Codex notes are in
+[code] skills/r90-sleep-planner/references/codex.md
+[h2] MiClaw Deployment
+[p] MiClaw compatibility depends on host support. R90 requires:
+[li] ability to read
+[code] SKILL.md
+[li] , or register it as host instructions.
+[li] ability to execute
+[code] python3 scripts/r90_calc.py
+[li] , or expose equivalent host actions.
+[li] optional local/private storage for
+[code] ~/.r90/sleep-log.json
+[li] optional host reminder delivery.
+[p] Recommended tool contract:
+[code] r90.windows(wakeTime, wakeDate, windDownMinutes=30, cycleOptions=[4,5,6], timezone)
+r90.wake(now=true | sleepTime, sleepDate, cycleOptions=[4,5,6], timezone)
+r90.checkin(reply, date=yesterday, store="~/.r90/sleep-log.json", timezone)
+r90.weekly(weekStart, entriesFile | entriesJson, target=35)
+[p] Render user-facing responses as plain text. Keep raw JSON for debugging or internal host state. More MiClaw notes are in
+[code] skills/r90-sleep-planner/references/miclaw.md
+[h2] CLI Usage
+[p] Calculate bedtime windows:
+[pre] python3 skills/r90-sleep-planner/scripts/r90_calc.py windows \
+  --wake-time 09:00 \
+  --wake-date 2026-05-04 \
+  --wind-down 30 \
+  --cycles 4,5,6 \
+  --timezone Asia/Shanghai
+[p] Calculate wake suggestions from now:
+[pre] python3 skills/r90-sleep-planner/scripts/r90_calc.py wake \
+  --now \
+  --cycles 4,5,6 \
+  --timezone Asia/Shanghai
+[p] Record a check-in:
+[pre] python3 skills/r90-sleep-planner/scripts/r90_calc.py checkin \
+  --reply
+[span] 23:30-07:00
+[pre] \
+  --date 2026-05-02 \
+  --store
+[pre] /.r90/sleep-log.json \
+  --timezone Asia/Shanghai
+[p] Summarize a week:
+[pre] python3 skills/r90-sleep-planner/scripts/r90_calc.py weekly \
+  --week-start 2026-04-27 \
+  --entries-file
+[pre] /.r90/sleep-log.json \
+  --target 35
+[h2] Data Storage
+[p] Default local log file:
+[code] ~/.r90/sleep-log.json
+[p] Records are local by default and are upserted by
+[code] date
+[h2] Behavior Notes
+[li] Wake-target shortcuts must show all default 4/5/6 cycle options.
+[li] "I am going to sleep now" means the current time is the lights-out reference.
+[li] Morning check-ins should ask for approximate sleep and wake times, not ask the user to calculate cycles manually.
+[li] Scheduled reminder output should be plain text.
+[li] Severe insomnia, suspected sleep apnea, long-term fatigue, or other health-risk contexts should be handled conservatively and directed toward professional help.
+[h2] Project Memory
+[p] This repository follows a Portfolio OS operating model:
+[code] STATE.md
+[li] : current stage, risks, and next step.
+[code] SAFEGUARDS.md
+[li] : safety boundaries and validation baseline.
+[code] DECISIONS.md
+[li] : key project decisions.
+[code] WORKFLOWS.md
+[li] : reusable workflows.
+[code] codex/MODES.md
+[code] Explore
+[code] Build
+[li] , and
+[code] Release
+[li] definitions.
+[code] DATA-CONTRACTS.md
+[li] : product-level data contracts.
+[code] USER-FLOWS.md
+[li] : calculator user flows.
+[code] AGENTS.md
+[li] : multi-agent roles and write boundaries.
+[h2] License
+[p] R90 is released under the MIT License. See
+[code] LICENSE
+[p] for details.
+[h2] About
+[p] Codex skill and CLI for R90 sleep-window planning, wake suggestions, and weekly cycle check-ins
+[h3] Topics
+[a] cli
+[a] skill
+[a] sleep
+[a] codex
+[a] wellness
+[a] r90
+[h3] Resources
+[a] Readme
+[h3] License
+[a] MIT license
+[h3] Uh oh!
+[p] There was an error while loading.
+[a] Please reload this page
+[span] Activity
+[h3] Stars
+[a] star
+[h3] Watchers
+[a] watching
+[h3] Forks
+[a] fork
+[a] Report repository
+[a] Releases
+[div] No releases published
+[a] Packages
+[div] No packages published
+[a] Contributors
+[strong] noodlebar
+[span] sparknoodle
+[h2] Languages
+[span] Python
+[span] 100.0%
+[span] © 2026 GitHub, Inc.
+[h3] Footer navigation
+[a] Security
+[a] Community
+[button] Do not share my personal information

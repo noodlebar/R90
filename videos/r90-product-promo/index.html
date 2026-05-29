@@ -1,0 +1,723 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=1920, height=1080" />
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+    <style>
+      * {
+        box-sizing: border-box;
+      }
+
+      html,
+      body {
+        margin: 0;
+        width: 1920px;
+        height: 1080px;
+        overflow: hidden;
+        background: #010409;
+        color: #f0f6fc;
+        font-family:
+          "Mona Sans VF",
+          -apple-system,
+          BlinkMacSystemFont,
+          "Segoe UI",
+          "Noto Sans",
+          Helvetica,
+          Arial,
+          sans-serif;
+      }
+
+      #root {
+        position: relative;
+        width: 1920px;
+        height: 1080px;
+        overflow: hidden;
+        background: #010409;
+      }
+
+      .clip {
+        position: absolute;
+        inset: 0;
+        overflow: hidden;
+        opacity: 0;
+        background: #0d1117;
+      }
+
+      .scene-content {
+        position: relative;
+        z-index: 2;
+        width: 100%;
+        height: 100%;
+        padding: 88px 112px;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        gap: 36px;
+      }
+
+      .glow {
+        position: absolute;
+        z-index: 0;
+        width: 1080px;
+        height: 760px;
+        background-image: url("capture/assets/glow-1.png");
+        background-repeat: no-repeat;
+        background-position: center;
+        background-size: contain;
+        opacity: 0.2;
+        pointer-events: none;
+      }
+
+      .grain {
+        position: absolute;
+        inset: 0;
+        z-index: 1;
+        opacity: 0.18;
+        background-image:
+          radial-gradient(circle at 20% 20%, rgba(68, 147, 248, 0.14), transparent 28%),
+          radial-gradient(circle at 80% 78%, rgba(35, 134, 54, 0.1), transparent 25%);
+      }
+
+      .kicker {
+        color: #4493f8;
+        font-size: 22px;
+        font-weight: 600;
+        text-transform: uppercase;
+      }
+
+      .week-card .kicker {
+        color: #f0f6fc;
+      }
+
+      .headline {
+        max-width: 820px;
+        color: #f0f6fc;
+        font-size: 82px;
+        line-height: 0.96;
+        font-weight: 600;
+      }
+
+      .headline-xl {
+        font-size: 126px;
+        line-height: 0.86;
+      }
+
+      .copy {
+        max-width: 740px;
+        color: #9198a1;
+        font-size: 33px;
+        line-height: 1.28;
+        font-weight: 400;
+      }
+
+      .word {
+        display: inline-block;
+      }
+
+      .repo-window {
+        border: 1px solid #3d444d;
+        border-radius: 8px;
+        background: #0d1117;
+        overflow: hidden;
+        box-shadow: 0 24px 90px rgba(1, 4, 9, 0.6);
+      }
+
+      .repo-window img {
+        display: block;
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+      }
+
+      .repo-shot {
+        position: absolute;
+        right: 96px;
+        top: 154px;
+        z-index: 2;
+        width: 920px;
+        height: 585px;
+      }
+
+      .repo-shot img {
+        object-position: 50% 0%;
+      }
+
+      .time-chip,
+      .platform-chip {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 112px;
+        height: 44px;
+        padding: 0 18px;
+        border: 1px solid #3d444d;
+        border-radius: 22px;
+        background: rgba(33, 40, 48, 0.78);
+        color: #f0f6fc;
+        font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+        font-size: 22px;
+      }
+
+      .chip-row {
+        display: flex;
+        gap: 14px;
+        flex-wrap: wrap;
+      }
+
+      .cycle-svg {
+        position: absolute;
+        inset: 0;
+        z-index: 1;
+        overflow: visible;
+      }
+
+      .draw-line,
+      .draw-arc,
+      .connector-path {
+        fill: none;
+        stroke: #4493f8;
+        stroke-width: 6;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+        stroke-dasharray: 1200;
+        stroke-dashoffset: 1200;
+      }
+
+      .draw-line {
+        stroke-width: 4;
+        opacity: 0.8;
+      }
+
+      .window-layout {
+        display: grid;
+        grid-template-columns: 640px 1fr;
+        align-items: center;
+        gap: 96px;
+      }
+
+      .wake-orbit {
+        position: relative;
+        width: 570px;
+        height: 570px;
+        border: 1px solid #3d444d;
+        border-radius: 50%;
+        background:
+          radial-gradient(circle at center, rgba(68, 147, 248, 0.16), transparent 42%),
+          #151b23;
+      }
+
+      .wake-core {
+        position: absolute;
+        left: 165px;
+        top: 165px;
+        width: 240px;
+        height: 240px;
+        border: 1px solid #4493f8;
+        border-radius: 50%;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        background: #0d1117;
+      }
+
+      .wake-label {
+        color: #9198a1;
+        font-size: 22px;
+      }
+
+      .wake-time {
+        color: #f0f6fc;
+        font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+        font-size: 60px;
+        font-weight: 600;
+      }
+
+      .option-stack {
+        display: flex;
+        flex-direction: column;
+        gap: 18px;
+      }
+
+      .sleep-option {
+        display: grid;
+        grid-template-columns: 110px 1fr 150px;
+        align-items: center;
+        gap: 24px;
+        min-height: 92px;
+        padding: 20px 24px;
+        border: 1px solid #3d444d;
+        border-radius: 8px;
+        background: #151b23;
+      }
+
+      .sleep-option strong {
+        color: #4493f8;
+        font-size: 28px;
+      }
+
+      .sleep-option span {
+        color: #f0f6fc;
+        font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+        font-size: 32px;
+      }
+
+      .sleep-option small {
+        color: #9198a1;
+        font-size: 20px;
+      }
+
+      .wind-down {
+        width: max-content;
+        padding: 15px 20px;
+        border-left: 4px solid #238636;
+        background: rgba(35, 134, 54, 0.12);
+        color: #f0f6fc;
+        font-size: 24px;
+      }
+
+      .terminal-layout {
+        display: grid;
+        grid-template-columns: 880px 1fr;
+        align-items: center;
+        gap: 76px;
+      }
+
+      .terminal {
+        min-height: 454px;
+        padding: 34px;
+        border: 1px solid #3d444d;
+        border-radius: 8px;
+        background: #151b23;
+        font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+        font-size: 30px;
+        line-height: 1.7;
+      }
+
+      .prompt {
+        color: #238636;
+      }
+
+      .typed {
+        color: #f0f6fc;
+      }
+
+      .cursor {
+        display: inline-block;
+        width: 14px;
+        height: 32px;
+        margin-left: 8px;
+        vertical-align: -5px;
+        background: #4493f8;
+      }
+
+      .wake-card {
+        position: relative;
+        min-height: 102px;
+        margin-bottom: 18px;
+        padding: 22px 26px;
+        border: 1px solid #3d444d;
+        border-radius: 8px;
+        background: #212830;
+      }
+
+      .wake-card b {
+        display: block;
+        color: #f0f6fc;
+        font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+        font-size: 42px;
+      }
+
+      .wake-card span {
+        color: #9198a1;
+        font-size: 22px;
+      }
+
+      .proof-layout {
+        display: grid;
+        grid-template-columns: 660px 1fr;
+        align-items: center;
+        gap: 80px;
+      }
+
+      .proof-shot {
+        width: 760px;
+        height: 650px;
+      }
+
+      .proof-shot img {
+        object-position: 50% 35%;
+      }
+
+      .json-panel {
+        padding: 32px 36px;
+        border: 1px solid #3d444d;
+        border-radius: 8px;
+        background: #151b23;
+        font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+        font-size: 31px;
+        line-height: 1.55;
+      }
+
+      .green {
+        color: #238636;
+      }
+
+      .blue {
+        color: #4493f8;
+      }
+
+      .weekly-layout {
+        display: grid;
+        grid-template-columns: 780px 1fr;
+        align-items: center;
+        gap: 76px;
+      }
+
+      .week-card {
+        padding: 38px;
+        border: 1px solid #3d444d;
+        border-radius: 8px;
+        background: #151b23;
+      }
+
+      .bars {
+        display: grid;
+        grid-template-columns: repeat(7, 1fr);
+        align-items: end;
+        height: 330px;
+        gap: 18px;
+        margin-top: 30px;
+      }
+
+      .bar-wrap {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: flex-end;
+        height: 100%;
+        gap: 12px;
+      }
+
+      .bar {
+        width: 58px;
+        height: 250px;
+        border: 1px solid #3d444d;
+        border-radius: 8px 8px 4px 4px;
+        background: #212830;
+        overflow: hidden;
+        display: flex;
+        align-items: flex-end;
+      }
+
+      .bar-fill {
+        width: 100%;
+        height: 0%;
+        background: linear-gradient(180deg, #4493f8, #238636);
+      }
+
+      .bar-label {
+        color: #9198a1;
+        font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+        font-size: 18px;
+      }
+
+      .total {
+        display: flex;
+        align-items: baseline;
+        gap: 18px;
+      }
+
+      .total-number {
+        color: #f0f6fc;
+        font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+        font-size: 108px;
+        font-weight: 600;
+      }
+
+      .total-label {
+        color: #9198a1;
+        font-size: 28px;
+      }
+
+      .final-lockup {
+        display: flex;
+        flex-direction: column;
+        gap: 22px;
+      }
+
+      .safety {
+        margin-top: 12px;
+        color: #9198a1;
+        font-size: 21px;
+      }
+    </style>
+  </head>
+  <body>
+    <div
+      id="root"
+      data-composition-id="main"
+      data-start="0"
+      data-duration="20"
+      data-width="1920"
+      data-height="1080"
+    >
+      <audio
+        id="narration"
+        src="narration.wav"
+        data-start="0"
+        data-duration="20"
+        data-track-index="0"
+        data-volume="1"
+      ></audio>
+
+      <div id="beat-1" class="clip" data-start="0" data-duration="3.8" data-track-index="1" data-layout-allow-overflow>
+        <div class="glow b1-glow" data-layout-ignore></div>
+        <div class="grain"></div>
+        <svg class="cycle-svg" viewBox="0 0 1920 1080" aria-hidden="true">
+          <path class="draw-line b1-line" d="M 180 720 C 430 610, 620 640, 820 520 S 1220 320, 1700 400" />
+        </svg>
+        <div class="scene-content">
+          <div class="kicker b1-kicker">portable skill + deterministic CLI</div>
+          <div class="headline headline-xl b1-title"><span class="word">R90</span></div>
+          <div class="copy b1-copy">Sleep planning should feel concrete before the night starts.</div>
+          <div class="chip-row b1-chips">
+            <span class="time-chip">22:30</span>
+            <span class="time-chip">00:00</span>
+            <span class="time-chip">07:00</span>
+          </div>
+        </div>
+        <div class="repo-window repo-shot b1-shot" data-layout-allow-overflow>
+          <img src="capture/screenshots/scroll-000.png" alt="R90 GitHub repository screenshot" />
+        </div>
+      </div>
+
+      <div id="beat-2" class="clip" data-start="3.8" data-duration="4" data-track-index="1" data-layout-allow-overflow>
+        <div class="glow b2-glow" data-layout-ignore></div>
+        <div class="grain"></div>
+        <div class="scene-content window-layout">
+          <div class="wake-orbit">
+            <svg class="cycle-svg" viewBox="0 0 570 570" aria-hidden="true">
+              <path class="draw-arc b2-arc" d="M 285 45 A 240 240 0 1 1 284 45" />
+              <path class="draw-line b2-spoke" d="M 285 285 L 285 70" />
+              <path class="draw-line b2-spoke" d="M 285 285 L 470 176" />
+              <path class="draw-line b2-spoke" d="M 285 285 L 470 394" />
+              <path class="draw-line b2-spoke" d="M 285 285 L 285 500" />
+              <path class="draw-line b2-spoke" d="M 285 285 L 100 394" />
+              <path class="draw-line b2-spoke" d="M 285 285 L 100 176" />
+            </svg>
+            <div class="wake-core">
+              <div class="wake-label">wake target</div>
+              <div class="wake-time">07:00</div>
+            </div>
+          </div>
+          <div>
+            <div class="kicker b2-kicker">wake time is the anchor</div>
+            <div class="headline b2-title">Back into the night by 90-minute cycles.</div>
+            <div class="option-stack">
+              <div class="sleep-option b2-option">
+                <strong>6x</strong><span>21:30</span><small>9h sleep</small>
+              </div>
+              <div class="sleep-option b2-option">
+                <strong>5x</strong><span>23:00</span><small>7.5h sleep</small>
+              </div>
+              <div class="sleep-option b2-option">
+                <strong>4x</strong><span>00:30</span><small>6h sleep</small>
+              </div>
+            </div>
+            <div class="wind-down b2-wind">30 min wind-down stays outside sleep time</div>
+          </div>
+        </div>
+      </div>
+
+      <div id="beat-3" class="clip" data-start="7.8" data-duration="3.5" data-track-index="1" data-layout-allow-overflow>
+        <div class="glow b3-glow" data-layout-ignore></div>
+        <div class="grain"></div>
+        <div class="scene-content terminal-layout">
+          <div class="terminal b3-terminal">
+            <div><span class="prompt">$</span> <span class="typed" id="typed-command"></span><span class="cursor b3-cursor"></span></div>
+            <div class="b3-output green">calculating clean wake options...</div>
+            <div class="b3-output blue">timezone: Asia/Shanghai</div>
+          </div>
+          <div>
+            <div class="kicker b3-kicker">when you are going to sleep now</div>
+            <div class="wake-card b3-card"><b>05:30</b><span>4 cycles</span></div>
+            <div class="wake-card b3-card"><b>07:00</b><span>5 cycles</span></div>
+            <div class="wake-card b3-card"><b>08:30</b><span>6 cycles</span></div>
+          </div>
+        </div>
+        <svg class="cycle-svg" viewBox="0 0 1920 1080" aria-hidden="true">
+          <path class="connector-path b3-connector" d="M 850 540 C 1000 420, 1120 360, 1260 350" />
+          <path class="connector-path b3-connector" d="M 850 540 C 1030 540, 1120 540, 1260 540" />
+          <path class="connector-path b3-connector" d="M 850 540 C 1000 660, 1120 720, 1260 730" />
+        </svg>
+      </div>
+
+      <div id="beat-4" class="clip" data-start="11.3" data-duration="4.2" data-track-index="1" data-layout-allow-overflow>
+        <div class="glow b4-glow" data-layout-ignore></div>
+        <div class="grain"></div>
+        <div class="scene-content proof-layout">
+          <div>
+            <div class="kicker b4-kicker">deterministic, local, verifiable</div>
+            <div class="headline b4-title">A skill when you chat. A CLI when you test.</div>
+            <div class="chip-row b4-chips">
+              <span class="platform-chip">Codex skill</span>
+              <span class="platform-chip">Pure CLI</span>
+              <span class="platform-chip">Local JSON</span>
+            </div>
+            <div class="json-panel b4-json">
+              {<br />
+              &nbsp;&nbsp;<span class="blue">"ok"</span>: <span class="green">true</span>,<br />
+              &nbsp;&nbsp;<span class="blue">"tests"</span>: [<br />
+              &nbsp;&nbsp;&nbsp;&nbsp;"windows", "wake",<br />
+              &nbsp;&nbsp;&nbsp;&nbsp;"weekly", "record", "checkin"<br />
+              &nbsp;&nbsp;]<br />
+              }
+            </div>
+          </div>
+          <div class="repo-window proof-shot b4-shot" data-layout-allow-overflow>
+            <img src="capture/screenshots/scroll-025.png" alt="R90 validation screenshot" />
+          </div>
+        </div>
+      </div>
+
+      <div id="beat-5" class="clip" data-start="15.5" data-duration="4.5" data-track-index="1" data-layout-allow-overflow>
+        <div class="glow b5-glow" data-layout-ignore></div>
+        <div class="grain"></div>
+        <div class="scene-content weekly-layout">
+          <div class="week-card b5-week">
+            <div class="kicker">morning check-ins</div>
+            <div class="total">
+              <span class="total-number" id="weekly-total">35</span>
+              <span class="total-label">cycles this week</span>
+            </div>
+            <div class="bars">
+              <div class="bar-wrap"><div class="bar"><div class="bar-fill" data-fill="78"></div></div><div class="bar-label">Mon</div></div>
+              <div class="bar-wrap"><div class="bar"><div class="bar-fill" data-fill="92"></div></div><div class="bar-label">Tue</div></div>
+              <div class="bar-wrap"><div class="bar"><div class="bar-fill" data-fill="70"></div></div><div class="bar-label">Wed</div></div>
+              <div class="bar-wrap"><div class="bar"><div class="bar-fill" data-fill="86"></div></div><div class="bar-label">Thu</div></div>
+              <div class="bar-wrap"><div class="bar"><div class="bar-fill" data-fill="64"></div></div><div class="bar-label">Fri</div></div>
+              <div class="bar-wrap"><div class="bar"><div class="bar-fill" data-fill="100"></div></div><div class="bar-label">Sat</div></div>
+              <div class="bar-wrap"><div class="bar"><div class="bar-fill" data-fill="80"></div></div><div class="bar-label">Sun</div></div>
+            </div>
+          </div>
+          <div class="final-lockup b5-lockup">
+            <div class="repo-window b5-shot" data-layout-allow-overflow>
+              <img src="capture/screenshots/scroll-050.png" alt="R90 weekly logging screenshot" />
+            </div>
+            <div class="headline">R90</div>
+            <div class="copy">Plan the night. Wake with a cleaner target.</div>
+            <div class="safety">Planning guidance only. Not medical advice.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      window.__timelines = window.__timelines || {};
+      var tl = gsap.timeline({ paused: true });
+
+      function splitWords(selector) {
+        document.querySelectorAll(selector).forEach(function (node) {
+          var text = node.textContent.trim();
+          node.textContent = "";
+          text.split(" ").forEach(function (word, index) {
+            var span = document.createElement("span");
+            span.className = "word";
+            span.textContent = word;
+            node.appendChild(span);
+            if (index < text.split(" ").length - 1) {
+              node.appendChild(document.createTextNode(" "));
+            }
+          });
+        });
+      }
+
+      function drawPath(selector, start, duration) {
+        document.querySelectorAll(selector).forEach(function (path) {
+          var length = path.getTotalLength ? path.getTotalLength() : 1200;
+          path.style.strokeDasharray = length;
+          path.style.strokeDashoffset = length;
+          tl.to(path, { strokeDashoffset: 0, duration: duration, ease: "power2.out" }, start);
+        });
+      }
+
+      splitWords(".b1-copy, .b2-title, .b4-title");
+
+      tl.set("#beat-1", { opacity: 1 }, 0);
+      tl.set("#beat-2", { opacity: 1 }, 3.8);
+      tl.set("#beat-3", { opacity: 1 }, 7.8);
+      tl.set("#beat-4", { opacity: 1 }, 11.3);
+      tl.set("#beat-5", { opacity: 1 }, 15.5);
+
+      gsap.set(".b1-glow", { left: -100, top: 80, scale: 1.2 });
+      gsap.set(".b1-shot", { transformPerspective: 1200, rotationY: -10, rotationX: 3, rotationZ: -1 });
+      tl.fromTo(".b1-kicker", { y: 26, opacity: 0 }, { y: 0, opacity: 1, duration: 0.45, ease: "power2.out" }, 0.16);
+      tl.fromTo(".b1-title", { x: -70, opacity: 0, scale: 0.96 }, { x: 0, opacity: 1, scale: 1, duration: 0.7, ease: "power3.out" }, 0.34);
+      tl.fromTo(".b1-copy .word", { y: 18, opacity: 0 }, { y: 0, opacity: 1, duration: 0.34, stagger: 0.035, ease: "power2.out" }, 0.74);
+      tl.fromTo(".b1-chips .time-chip", { y: 38, opacity: 0 }, { y: 0, opacity: 1, duration: 0.42, stagger: 0.09, ease: "power2.out" }, 1.28);
+      tl.fromTo(".b1-shot", { x: 130, opacity: 0, scale: 0.96 }, { x: 0, opacity: 1, scale: 1, duration: 0.8, ease: "power3.out" }, 0.4);
+      tl.to(".b1-shot img", { scale: 1.035, duration: 3.25, ease: "none" }, 0.45);
+      drawPath(".b1-line", 0.8, 1.2);
+      tl.to(".b1-glow", { x: 80, y: 12, scale: 1.25, duration: 3.8, ease: "sine.inOut" }, 0);
+      tl.to("#beat-1 .scene-content, #beat-1 .repo-shot", { y: -90, filter: "blur(18px)", opacity: 0, duration: 0.42, ease: "power2.in" }, 3.36);
+      tl.set("#beat-1 .scene-content, #beat-1 .repo-shot", { opacity: 0, visibility: "hidden" }, 3.8);
+      tl.set("#beat-1", { opacity: 0 }, 3.8);
+
+      gsap.set(".b2-glow", { right: -180, bottom: -120, scale: 1.25 });
+      tl.fromTo(".wake-orbit", { y: 120, opacity: 0, scale: 0.9 }, { y: 0, opacity: 1, scale: 1, duration: 0.72, ease: "power3.out" }, 3.86);
+      tl.fromTo(".b2-kicker", { x: 46, opacity: 0 }, { x: 0, opacity: 1, duration: 0.38, ease: "power2.out" }, 4.02);
+      tl.fromTo(".b2-title .word", { y: 28, opacity: 0 }, { y: 0, opacity: 1, duration: 0.32, stagger: 0.03, ease: "power2.out" }, 4.18);
+      drawPath(".b2-arc", 4.32, 1.05);
+      drawPath(".b2-spoke", 4.64, 0.72);
+      tl.fromTo(".b2-option", { x: 80, opacity: 0 }, { x: 0, opacity: 1, duration: 0.44, stagger: 0.12, ease: "power2.out" }, 5.0);
+      tl.fromTo(".b2-wind", { y: 24, opacity: 0 }, { y: 0, opacity: 1, duration: 0.42, ease: "power2.out" }, 5.72);
+      tl.to(".wake-orbit", { rotation: 8, duration: 3.6, ease: "none" }, 3.9);
+      tl.to(".b2-glow", { x: -70, y: -24, scale: 1.3, duration: 4, ease: "sine.inOut" }, 3.8);
+      tl.to("#beat-2 .scene-content", { filter: "blur(20px)", opacity: 0, duration: 0.34, ease: "power2.in" }, 7.42);
+      tl.set("#beat-2 .scene-content", { opacity: 0, visibility: "hidden" }, 7.8);
+      tl.set("#beat-2", { opacity: 0 }, 7.8);
+
+      gsap.set(".b3-glow", { left: 170, bottom: -180, scale: 1.1 });
+      tl.fromTo(".b3-terminal", { x: -120, opacity: 0 }, { x: 0, opacity: 1, duration: 0.52, ease: "power3.out" }, 7.86);
+      tl.fromTo(".b3-kicker", { y: 22, opacity: 0 }, { y: 0, opacity: 1, duration: 0.32, ease: "power2.out" }, 8.05);
+      var command = "python3 r90_calc.py wake --now";
+      for (var i = 0; i <= command.length; i += 1) {
+        tl.set("#typed-command", { textContent: command.slice(0, i) }, 8.02 + i * 0.025);
+      }
+      tl.fromTo(".b3-output", { y: 18, opacity: 0 }, { y: 0, opacity: 1, duration: 0.28, stagger: 0.1, ease: "power2.out" }, 8.96);
+      drawPath(".b3-connector", 9.08, 0.72);
+      tl.fromTo(".b3-card", { x: 90, opacity: 0, scale: 0.96 }, { x: 0, opacity: 1, scale: 1, duration: 0.4, stagger: 0.12, ease: "power2.out" }, 9.12);
+      tl.to(".b3-cursor", { opacity: 0.2, yoyo: true, repeat: 5, duration: 0.22, ease: "steps(1)" }, 8.0);
+      tl.to(".b3-glow", { x: 34, y: -28, scale: 1.18, duration: 3.5, ease: "sine.inOut" }, 7.8);
+      tl.set("#beat-3", { opacity: 0 }, 11.3);
+
+      gsap.set(".b4-glow", { right: -60, top: 130, scale: 1.05 });
+      tl.fromTo(".b4-kicker", { y: 26, opacity: 0 }, { y: 0, opacity: 1, duration: 0.34, ease: "power2.out" }, 11.38);
+      tl.fromTo(".b4-title .word", { y: 28, opacity: 0 }, { y: 0, opacity: 1, duration: 0.3, stagger: 0.025, ease: "power2.out" }, 11.58);
+      tl.fromTo(".b4-chips .platform-chip", { y: 38, opacity: 0 }, { y: 0, opacity: 1, duration: 0.36, stagger: 0.1, ease: "power2.out" }, 12.08);
+      tl.fromTo(".b4-json", { y: 44, opacity: 0 }, { y: 0, opacity: 1, duration: 0.5, ease: "power3.out" }, 12.48);
+      gsap.set(".b4-shot", { transformPerspective: 1200, rotationY: 8, rotationX: 2 });
+      tl.fromTo(".b4-shot", { x: 110, opacity: 0, scale: 0.96 }, { x: 0, opacity: 1, scale: 1, duration: 0.72, ease: "power3.out" }, 11.72);
+      tl.to(".b4-shot img", { y: -80, scale: 1.03, duration: 3.6, ease: "none" }, 11.8);
+      tl.to(".b4-glow", { x: -40, y: 24, scale: 1.16, duration: 4.2, ease: "sine.inOut" }, 11.3);
+      tl.to("#beat-4 .scene-content", { x: -360, filter: "blur(22px)", opacity: 0, duration: 0.32, ease: "power3.in" }, 15.13);
+      tl.set("#beat-4 .scene-content", { opacity: 0, visibility: "hidden" }, 15.5);
+      tl.set("#beat-4", { opacity: 0 }, 15.5);
+
+      gsap.set(".b5-glow", { left: -130, top: 30, scale: 1.3 });
+      tl.fromTo(".b5-week", { x: -120, opacity: 0 }, { x: 0, opacity: 1, duration: 0.58, ease: "power3.out" }, 15.58);
+      tl.fromTo(".b5-lockup", { x: 120, opacity: 0 }, { x: 0, opacity: 1, duration: 0.58, ease: "power3.out" }, 15.74);
+      document.querySelectorAll(".bar-fill").forEach(function (bar, index) {
+        tl.to(bar, { height: bar.getAttribute("data-fill") + "%", duration: 0.62, ease: "power2.out" }, 16.1 + index * 0.07);
+      });
+      tl.fromTo("#weekly-total", { y: 28, opacity: 0 }, { y: 0, opacity: 1, duration: 0.42, ease: "power2.out" }, 16.08);
+      tl.to(".b5-shot img", { y: -60, scale: 1.025, duration: 3.5, ease: "none" }, 15.9);
+      tl.to(".b5-glow", { x: 70, y: 12, scale: 1.36, duration: 4.5, ease: "sine.inOut" }, 15.5);
+      tl.fromTo(".safety", { opacity: 0 }, { opacity: 1, duration: 0.45, ease: "power2.out" }, 18.82);
+
+      window.__timelines["main"] = tl;
+    </script>
+  </body>
+</html>
