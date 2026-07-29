@@ -390,7 +390,7 @@ def parse_checkin_reply(reply: str) -> dict[str, Any]:
         return {
             "status": "needs_clarification",
             "reason": "empty reply",
-            "acceptedFormats": ["23:30-07:00", "跳过"],
+            "acceptedFormats": ["5", "23:30-07:00", "跳过"],
         }
     if SKIP_RE.search(normalized):
         return {"status": "skipped", "reason": "user skipped check-in"}
@@ -430,7 +430,7 @@ def parse_checkin_reply(reply: str) -> dict[str, Any]:
     return {
         "status": "needs_clarification",
         "reason": "reply did not include cycles, duration, or a sleep time range",
-        "acceptedFormats": ["23:30-07:00", "跳过"],
+        "acceptedFormats": ["5", "23:30-07:00", "跳过"],
     }
 
 
@@ -524,7 +524,7 @@ def cmd_checkin(args: argparse.Namespace) -> dict[str, Any]:
     if parsed["status"] != "parsed":
         return {
             "checkIn": parsed,
-            "prompt": "大约几点睡、几点醒？直接回：23:30-07:00。不记就回：跳过。",
+            "prompt": "直接回周期数：5；记不清就回时间段：23:30-07:00；不记回：跳过。",
         }
 
     if args.date:
@@ -603,6 +603,7 @@ def cmd_self_test(_: argparse.Namespace) -> dict[str, Any]:
     assert parse_checkin_reply("11点半到7点")["actualCycles"] == 5
     assert parse_checkin_reply("12点-7点")["actualCycles"] == 4
     assert parse_checkin_reply("跳过")["status"] == "skipped"
+    assert parse_checkin_reply("")["acceptedFormats"] == ["5", "23:30-07:00", "跳过"]
 
     store_path = Path("/tmp/r90_calc_self_test_log.json")
     if store_path.exists():

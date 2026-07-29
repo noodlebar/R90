@@ -32,13 +32,13 @@ The skill does not schedule itself. Use OpenClaw cron for morning check-ins.
 In-app/current-session reminder:
 
 ```bash
-openclaw cron add --name "R90 morning check-in" --cron "0 10 * * *" --tz "Asia/Shanghai" --session main --system-event "R90 morning check-in. Send exactly this concise prompt in Chinese: 早，记一下昨晚睡眠。大约几点睡、几点醒？直接回：23:30-07:00。不记就回：跳过. When the user replies, use r90_sleep_planner checkin parsing. Record parsed cycles for yesterday, then respond with the updated weekly total in one short sentence." --wake now
+openclaw cron add --name "R90 morning check-in" --cron "0 10 * * *" --tz "Asia/Shanghai" --session main --system-event "R90 morning check-in. Send exactly this concise prompt in Chinese: 早，记一下昨晚睡眠。直接回周期数：5；记不清就回时间段：23:30-07:00；不记回：跳过. When the user replies, use r90-sleep-planner checkin parsing. Record parsed cycles for yesterday, then respond with the updated weekly total in one short sentence." --wake now
 ```
 
 External chat push after channel permissions are verified:
 
 ```bash
-openclaw cron add --name "R90 morning check-in" --cron "0 10 * * *" --tz "Asia/Shanghai" --session isolated --message "Return only this plain-text message. Do not wrap it in JSON. Do not output a text field. Message: 早，记一下昨晚睡眠。大约几点睡、几点醒？直接回：23:30-07:00。不记就回：跳过" --announce --channel feishu --to "<verified-chat-target>"
+openclaw cron add --name "R90 morning check-in" --cron "0 10 * * *" --tz "Asia/Shanghai" --session isolated --message "Return only this plain-text message. Do not wrap it in JSON. Do not output a text field. Message: 早，记一下昨晚睡眠。直接回周期数：5；记不清就回时间段：23:30-07:00；不记回：跳过" --announce --channel feishu --to "<verified-chat-target>"
 ```
 
 ## Delivery Rules
@@ -53,6 +53,6 @@ If an existing reminder is sending `{"text":"..."}`, inspect and edit that cron 
 
 ```bash
 openclaw cron list
-openclaw cron edit <job-id> --message "Return only this plain-text message. Do not wrap it in JSON. Do not output a text field. Message: 早，记一下昨晚睡眠。大约几点睡、几点醒？直接回：23:30-07:00。不记就回：跳过"
+openclaw cron edit <job-id> --message "Return only this plain-text message. Do not wrap it in JSON. Do not output a text field. Message: 早，记一下昨晚睡眠。直接回周期数：5；记不清就回时间段：23:30-07:00；不记回：跳过"
 openclaw cron run <job-id>
 ```

@@ -31,10 +31,10 @@
 
 当前仓库交付的是一个可移植 Agent Skill 和 CLI 工具：
 
-- `r90_sleep_planner`：skill 提示词、回复规则和安全边界。
+- `r90-sleep-planner`：skill 提示词、回复规则和安全边界。
 - `r90_calc.py`：确定性计算脚本，负责所有时间和周统计计算。
 - 本地 JSON 睡眠记录，支持按日期 upsert，不重复记录同一天。
-- OpenClaw、Codex、MiClaw 平台适配说明。
+- OpenClaw、Codex、MiClaw、SLI 平台适配说明。
 - 双轨计算策略：优先使用脚本或 host action；脚本不可用时，`SKILL.md` 内置算法可降级计算。
 - `self-test` 内置验证。
 
@@ -58,6 +58,7 @@
 - `skills/r90-sleep-planner/references/openclaw.md`：OpenClaw 安装、cron 和推送说明。
 - `skills/r90-sleep-planner/references/codex.md`：Codex 安装、执行和自动化说明。
 - `skills/r90-sleep-planner/references/miclaw.md`：MiClaw 兼容和工具契约说明。
+- `skills/r90-sleep-planner/references/sli.md`：SLI skill 注册和 host action 契约说明。
 - `DATA-CONTRACTS.md`、`USER-FLOWS.md`、`SAFEGUARDS.md`、`STATE.md`：产品级项目记忆。
 
 ## 环境要求
@@ -75,6 +76,7 @@
 | OpenClaw | 支持单文件 `SKILL.md` | 聊天 skill、cron 提醒、外部渠道推送；脚本需作为外部工具单独配置 |
 | Codex | 支持本地 skills | 本地 skill、CLI 验证、Codex 自动化 |
 | MiClaw | 提供适配契约 | 注册为 skill/tool bundle，或暴露脚本为 host action |
+| SLI | 提供适配契约 | 注册 skill 指令并暴露等价 host actions |
 | 纯 CLI | 完整支持 | 直接计算和本地 JSON 记录 |
 
 ## 获取和验证
@@ -141,13 +143,13 @@ openclaw skills list
 当前会话提醒：
 
 ```bash
-openclaw cron add --name "R90 morning check-in" --cron "0 10 * * *" --tz "Asia/Shanghai" --session main --system-event "R90 morning check-in. Send exactly this concise prompt in Chinese: 早，记一下昨晚睡眠。大约几点睡、几点醒？直接回：23:30-07:00。不记就回：跳过. When the user replies, use r90_sleep_planner checkin parsing. Record parsed cycles for yesterday, then respond with the updated weekly total in one short sentence." --wake now
+openclaw cron add --name "R90 morning check-in" --cron "0 10 * * *" --tz "Asia/Shanghai" --session main --system-event "R90 morning check-in. Send exactly this concise prompt in Chinese: 早，记一下昨晚睡眠。直接回周期数：5；记不清就回时间段：23:30-07:00；不记回：跳过. When the user replies, use r90-sleep-planner checkin parsing. Record parsed cycles for yesterday, then respond with the updated weekly total in one short sentence." --wake now
 ```
 
 外部聊天推送需先确认渠道权限和目标 ID：
 
 ```bash
-openclaw cron add --name "R90 morning check-in" --cron "0 10 * * *" --tz "Asia/Shanghai" --session isolated --message "Return only this plain-text message. Do not wrap it in JSON. Do not output a text field. Message: 早，记一下昨晚睡眠。大约几点睡、几点醒？直接回：23:30-07:00。不记就回：跳过" --announce --channel feishu --to "<verified-chat-target>"
+openclaw cron add --name "R90 morning check-in" --cron "0 10 * * *" --tz "Asia/Shanghai" --session isolated --message "Return only this plain-text message. Do not wrap it in JSON. Do not output a text field. Message: 早，记一下昨晚睡眠。直接回周期数：5；记不清就回时间段：23:30-07:00；不记回：跳过" --announce --channel feishu --to "<verified-chat-target>"
 ```
 
 如果推送显示成 `{"text":"..."}`，说明 cron message 需要改成纯文本输出。更多说明见 `skills/r90-sleep-planner/references/openclaw.md`。
@@ -185,8 +187,9 @@ python3 "${CODEX_HOME:-$HOME/.codex}/skills/r90-sleep-planner/scripts/r90_calc.p
 
 ```text
 早，记一下昨晚睡眠。
-大约几点睡、几点醒？直接回：23:30-07:00
-不记就回：跳过
+直接回周期数：5
+记不清就回时间段：23:30-07:00
+不记回：跳过
 ```
 
 用户回复后，再调用 `checkin` 记录对应睡眠日期。更多说明见 `skills/r90-sleep-planner/references/codex.md`。
@@ -210,6 +213,10 @@ r90.weekly(weekStart, entriesFile | entriesJson, target=35)
 ```
 
 用户可见回复应渲染为纯文本；原始 JSON 只用于调试或内部状态。更多说明见 `skills/r90-sleep-planner/references/miclaw.md`。
+
+## SLI 部署
+
+在 SLI 风格宿主中注册 `SKILL.md`，并尽量暴露与 CLI 对应的 `r90.windows`、`r90.wake`、`r90.checkin` 和 `r90.weekly` actions。宿主只支持单一指令正文时，使用 `SKILL.md` 内置降级算法；没有持久化能力时，不得声称日志已保存。更多说明见 `skills/r90-sleep-planner/references/sli.md`。
 
 ## CLI 直接使用
 
@@ -278,7 +285,7 @@ python3 skills/r90-sleep-planner/scripts/r90_calc.py weekly \
 
 - `我明天9点起床` 这类快捷指令必须展示默认 4/5/6 周期。
 - `我要睡了` 表示以当前时间为入睡参考，不能复用之前推荐的 bedtime。
-- 早晨打卡只问大约入睡和起床时间，不要求用户自己计算 R90。
+- 早晨打卡可直接回复周期数；不知道周期数时可回复大约入睡和起床时间，由 skill 计算。
 - 计算优先级是脚本、host action、`SKILL.md` 内置算法；脚本不可用时仍要给出降级结果。
 - 定时提醒输出应是纯文本。
 - 严重失眠、疑似睡眠呼吸暂停、长期疲劳等情况应提示寻求专业帮助。
@@ -291,10 +298,10 @@ python3 skills/r90-sleep-planner/scripts/r90_calc.py weekly \
 
 R90 currently ships as a portable Agent Skill and deterministic CLI utility:
 
-- `r90_sleep_planner`: skill instructions, response rules, and safety boundaries.
+- `r90-sleep-planner`: skill instructions, response rules, and safety boundaries.
 - `r90_calc.py`: deterministic calculator used for all arithmetic.
 - Local JSON logging for self-reported sleep-cycle check-ins.
-- Platform adapter notes for OpenClaw, Codex, and MiClaw.
+- Platform adapter notes for OpenClaw, Codex, MiClaw, and SLI.
 - Dual-track calculation: prefer the script or a host action; fall back to the manual algorithm embedded in `SKILL.md` when scripts are unavailable.
 - Built-in validation through `self-test`.
 
@@ -320,6 +327,7 @@ There is no standalone web or mobile app yet. The usable surfaces are the Agent 
 - `skills/r90-sleep-planner/references/openclaw.md`: OpenClaw installation, cron, and delivery notes.
 - `skills/r90-sleep-planner/references/codex.md`: Codex placement, execution, and automation notes.
 - `skills/r90-sleep-planner/references/miclaw.md`: MiClaw compatibility and tool-contract notes.
+- `skills/r90-sleep-planner/references/sli.md`: SLI skill registration and host-action notes.
 
 ## Requirements
 
@@ -336,6 +344,7 @@ There is no standalone web or mobile app yet. The usable surfaces are the Agent 
 | OpenClaw | Supported through single-file `SKILL.md` | Chat skill plus cron reminders and external channel delivery; configure the script separately as an external tool |
 | Codex | Supported through local skills | Local skill execution, CLI validation, and Codex automations where available |
 | MiClaw | Adapter contract provided | Register as a skill/tool bundle or expose script commands as host actions |
+| SLI | Adapter contract provided | Register the skill instructions and expose equivalent host actions |
 | Plain CLI | Fully supported | Direct deterministic calculations and local JSON logs |
 
 ## Get And Validate
@@ -398,7 +407,7 @@ I am going to sleep now.
 Morning reminder, current session:
 
 ```bash
-openclaw cron add --name "R90 morning check-in" --cron "0 10 * * *" --tz "Asia/Shanghai" --session main --system-event "R90 morning check-in. Send exactly this concise prompt in English: Morning check-in. What time did you roughly fall asleep and wake up? Reply like: 23:30-07:00. Reply skip to skip. When the user replies, use r90_sleep_planner checkin parsing. Record parsed cycles for yesterday, then respond with the updated weekly total in one short sentence." --wake now
+openclaw cron add --name "R90 morning check-in" --cron "0 10 * * *" --tz "Asia/Shanghai" --session main --system-event "R90 morning check-in. Send exactly this concise prompt in English: Morning check-in. Reply with cycles if known: 5. Otherwise reply with a time range: 23:30-07:00. Reply skip to skip. When the user replies, use r90-sleep-planner checkin parsing. Record parsed cycles for yesterday, then respond with the updated weekly total in one short sentence." --wake now
 ```
 
 More OpenClaw notes are in `skills/r90-sleep-planner/references/openclaw.md`.
@@ -425,8 +434,8 @@ If Codex provides automations/reminders, use plain text:
 
 ```text
 Morning check-in.
-What time did you roughly fall asleep and wake up?
-Reply like: 23:30-07:00
+Reply with cycles if known: 5
+Otherwise reply with a time range: 23:30-07:00
 Reply skip to skip.
 ```
 
@@ -451,6 +460,10 @@ r90.weekly(weekStart, entriesFile | entriesJson, target=35)
 ```
 
 Render user-facing responses as plain text. Keep raw JSON for debugging or internal host state. More MiClaw notes are in `skills/r90-sleep-planner/references/miclaw.md`.
+
+## SLI Deployment
+
+Register `SKILL.md` in an SLI-style host and expose `r90.windows`, `r90.wake`, `r90.checkin`, and `r90.weekly` actions when possible. A single-instruction host can use the fallback algorithms embedded in `SKILL.md`; without persistent storage, it must not claim that a log was saved. See `skills/r90-sleep-planner/references/sli.md`.
 
 ## CLI Usage
 
@@ -507,7 +520,7 @@ Records are local by default and are upserted by `date`.
 
 - Wake-target shortcuts must show all default 4/5/6 cycle options.
 - "I am going to sleep now" means the current time is the lights-out reference.
-- Morning check-ins should ask for approximate sleep and wake times, not ask the user to calculate cycles manually.
+- Morning check-ins may accept a direct cycle count; when the count is unknown, accept an approximate sleep/wake range and calculate it for the user.
 - Scheduled reminder output should be plain text.
 - Severe insomnia, suspected sleep apnea, long-term fatigue, or other health-risk contexts should be handled conservatively and directed toward professional help.
 

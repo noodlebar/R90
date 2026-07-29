@@ -1,5 +1,5 @@
 ---
-name: r90_sleep_planner
+name: r90-sleep-planner
 description: Calculate R90 bedtime windows, recommend wake times from lights-out, and record weekly R90 sleep-cycle logs with conservative wellness guidance.
 ---
 
@@ -22,7 +22,7 @@ Support both Chinese and English. Reply in the user's language. If the user mixe
 3. If required inputs are missing, ask only for the missing core input:
    - Bedtime windows require `wakeTime` in `HH:mm`.
    - Wake suggestions must use the current local time when the user says "now", "我要睡了", "准备睡了", or similar; otherwise ask for `sleepTime` in `HH:mm`.
-   - Daily check-ins should ask only for approximate sleep and wake times. Prefer replies like `23:30-07:00`.
+   - Daily check-ins should accept a direct cycle count when known and an approximate range such as `23:30-07:00` when the user does not want to calculate cycles.
    - Weekly tracking requires dated entries with `actualCycles`.
 4. Defaults:
    - `cycleOptions`: `[4, 5, 6]`
@@ -40,6 +40,7 @@ Support both Chinese and English. Reply in the user's language. If the user mixe
     - OpenClaw: `references/openclaw.md`
     - Codex: `references/codex.md`
     - MiClaw: `references/miclaw.md`
+    - SLI: `references/sli.md`
 
 ## Calculation Priority and Fallback
 
@@ -138,30 +139,25 @@ When the user says `我要睡了`, `我现在睡了`, `准备睡觉`, `I am goin
 
 Daily reminder output must be plain text. Never wrap the reminder in JSON, do not output `{"text": "..."}`, and do not use a code block.
 
-Use this prompt style for daily reminders:
+Use this prompt style for Chinese daily reminders:
 
 ```text
 早，记一下昨晚睡眠。
-大约几点睡、几点醒？直接回：23:30-07:00
-不记就回：跳过
+直接回周期数：5
+记不清就回时间段：23:30-07:00
+不记回：跳过
 ```
 
 English reminder style:
 
 ```text
 Morning check-in.
-What time did you roughly fall asleep and wake up?
-Reply like: 23:30-07:00
+Reply with cycles if known: 5
+Otherwise reply with a time range: 23:30-07:00
 Reply skip to skip.
 ```
 
-Avoid this style:
-
-```text
-昨晚你完成了几个完整的 R90 睡眠周期？
-```
-
-Reason: the user should not need to know or calculate R90 cycles in the morning. Ask for approximate sleep and wake times, parse the time range, then explain the recorded R90 count after saving it.
+The user may reply with a cycle count, but must not be required to calculate cycles. When the count is unknown, parse an approximate sleep/wake range and calculate it for them.
 
 Date rule:
 

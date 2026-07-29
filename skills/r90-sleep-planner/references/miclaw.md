@@ -32,8 +32,9 @@ Preferred reminder text:
 
 ```text
 早，记一下昨晚睡眠。
-大约几点睡、几点醒？直接回：23:30-07:00
-不记就回：跳过
+直接回周期数：5
+记不清就回时间段：23:30-07:00
+不记回：跳过
 ```
 
 When the user replies, call `r90.checkin` for the prompted sleep date. Repeated replies in the same reminder thread should update the same date, not create a new current-date record.
