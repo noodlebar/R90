@@ -1,0 +1,11 @@
+Sleep planning shouldn't be guesswork.
+
+R90 turns a wake time into practical ninety-minute sleep windows, with wind-down kept separate.
+
+When you're going to sleep now, it suggests clean wake options.
+
+As a Codex skill or C L I, it's deterministic, local, and easy to verify.
+
+Then morning check-ins turn nights into a lightweight weekly cycle log.
+
+R90. Plan the night. Wake with a cleaner target.

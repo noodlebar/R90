@@ -35,8 +35,9 @@ If Codex provides automations or reminders, use the host automation capability t
 
 ```text
 早，记一下昨晚睡眠。
-大约几点睡、几点醒？直接回：23:30-07:00
-不记就回：跳过
+直接回周期数：5
+记不清就回时间段：23:30-07:00
+不记回：跳过
 ```
 
 The automation should not write records by itself. It should prompt the user, then call `checkin` after the user replies. Record the previous local calendar date unless the user explicitly gives another date.
